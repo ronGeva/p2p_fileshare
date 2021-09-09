@@ -1,12 +1,13 @@
 import sys
 import socket
+from server import Server
 
 
 def main(args):
     # TODO: parse args
-    # TODO: Initialize server
-    # TODO: Implement main loop - if a new client is found, create it
-    pass
+    server = Server()
+    while True:
+        server.main_loop()
 
 
 if __name__ == '__main__':
