@@ -1,7 +1,7 @@
 """
 This module is responsible for communication with the server
 """
-from framework.messages import Message, MessageType
+from p2p_fileshare.framework.messages import Message, MessageType
 
 
 class Channel(object):
