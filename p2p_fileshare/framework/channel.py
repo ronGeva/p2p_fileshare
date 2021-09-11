@@ -1,12 +1,12 @@
 """
-This module is responsible for communication with the server
+This module is a wrapper for reliable communication with an endpoint.
 """
 from p2p_fileshare.framework.messages import Message, MessageType
 
 
 class Channel(object):
-    def __init__(self, server_address: (str, int)):
-        pass
+    def __init__(self, endpoint_socket):
+        self._socket = endpoint_socket
 
     def send_msg_and_wait_for_response(self, message: Message):
         """
