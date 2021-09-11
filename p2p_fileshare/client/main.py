@@ -1,5 +1,6 @@
 import sys
-from channel import Channel
+from socket import socket
+from p2p_fileshare.framework.channel import Channel
 from files_manager import FilesManager
 
 
@@ -12,7 +13,9 @@ Enter a command, one of the following:
 
 
 def initialize_communication_channel(args):
-    return Channel((args[1], int(args[2])))
+    sock = socket()
+    sock.connect((args[1], int(args[2]))) # TODO: validate args
+    return Channel(sock)
 
 
 def perform_command(user_input: str, files_manager: FilesManager):
