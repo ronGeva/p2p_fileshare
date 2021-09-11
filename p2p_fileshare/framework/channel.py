@@ -1,11 +1,13 @@
 """
 This module is a wrapper for reliable communication with an endpoint.
 """
-from p2p_fileshare.framework.messages import Message, MessageType
+from p2p_fileshare.framework.messages import Message
+from socket import socket
+from struct import pack, unpack
 
 
 class Channel(object):
-    def __init__(self, endpoint_socket):
+    def __init__(self, endpoint_socket: socket):
         self._socket = endpoint_socket
 
     def send_msg_and_wait_for_response(self, message: Message):
@@ -14,10 +16,27 @@ class Channel(object):
         :param message: The message to send.
         :return: A Message object containing the server's response.
         """
-        raise NotImplementedError
+        self.send_message(message)
+        return self.wait_for_response(message.matching_response_type)
 
-    def _send_message(self, message: Message):
-        raise NotImplementedError
+    def send_message(self, message: Message):
+        data = message.serialize()
+        data_len = len(data)
+        len_data = pack("I", data_len)
+        full_message = len_data + data
+        self._socket.send(full_message)
 
-    def _wait_for_response(self, expected_msg_type: MessageType, timeout=None):
-        raise NotImplementedError
+    def recv_message(self):
+        len_data = self._socket.recv(4)
+        msg_len = unpack("I", len_data)[0]
+        msg_data = self._socket.recv(msg_len)
+        return Message.deserialize(msg_data)
+
+    def wait_for_response(self, expected_msg_type: Message, timeout=None):
+        while True:  # TODO: implement stop condition
+            new_msg = self.recv_message()
+            if isinstance(new_msg, expected_msg_type):
+                return new_msg
+
+    def fileno(self):
+        return self._socket.fileno()
