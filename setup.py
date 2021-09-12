@@ -1,4 +1,5 @@
 from distutils.core import setup
+from setuptools import find_packages
 
 
 DEPENDENCIES = ['click']
@@ -9,6 +10,6 @@ setup(name='p2p_fileshare',
       description='p2p file sharing application',
       author='Ron Geva, Tal Persia',
       author_email='coolron54@gmail.com',
-      packages=['p2p_fileshare'],
+      packages=find_packages(),
       install_requires=DEPENDENCIES
 )
