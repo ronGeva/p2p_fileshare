@@ -1,7 +1,8 @@
 """
 A module governing file access.
 """
-from channel import Channel
+from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.messages import SearchFileMessage
 
 
 class FilesManager(object):
@@ -13,7 +14,9 @@ class FilesManager(object):
         :param file_name: The name (or a substring) of a the file name
         :return: A list of SharedFile objects
         """
-        raise NotImplementedError
+        msg = SearchFileMessage(file_name)
+        self._communication_channel.send_message(msg)
+        # TODO: get response and return it
 
     def share_file(self, unique_id: str):
         raise NotImplementedError
