@@ -17,38 +17,48 @@ def db_cursor(path):
     conn.close()
 
 
-def thread_safe(func):
-    def wrapper(instance: DBManager, *args, **kwargs):
-        instance._lock.acqurie()
-        return func(instance, *args, **kwargs)
+def db_func(func):
+    def wrapper(instance, *args, **kwargs):
+        instance.lock.acquire()
+        with db_cursor(instance.db_path) as cursor:
+            func_res = func(instance, cursor, *args, **kwargs)
+        instance.lock.release()
+        return func_res
     return wrapper
 
 
 class DBManager(object):
+    # TODO: patch sql injections all over this class
     DEFAULT_DB_PATH = "server_db.db"
 
     def __init__(self, db_path=None):
-        self._db_path = db_path or self.DEFAULT_DB_PATH
-        if not exists(self._db_path):
-            self.__create_empty_db(self._db_path)
+        self.db_path = db_path or self.DEFAULT_DB_PATH
+        if not exists(self.db_path):
+            self.__create_empty_db(self.db_path)
         else:
-            assert isfile(self._db_path), "Fatal error: DB path is a directory!"
-        self._lock = FileLock("{perfix}.lock".format(prefix=self._db_path))
+            assert isfile(self.db_path), "Fatal error: DB path is a directory!"
+        self.lock = FileLock("{prefix}.lock".format(prefix=self.db_path))
 
     @staticmethod
     def __create_empty_db(path):
         with db_cursor(path) as cursor:
-            cursor.execute("CREATE TABLE files (file_name text, modification_time integer, size integer, origins text)")
-            cursor.execute("CREATE TABLE origins (ip text, port integer)")
+            cursor.execute("CREATE TABLE files (file_name text, modification_time integer, size integer, origins text);")
+            cursor.execute("CREATE TABLE origins (ip text, port integer);")
 
-    @thread_safe
-    def search_file(self, filename: str):
-        pass
+    @db_func
+    def search_file(self, cursor: sqlite3.Cursor, filename: str):
+        cursor.execute("SELECT * FROM files where file_name like '%{}%';".format(filename))
+        result = cursor.fetchall()
+        # TODO: get unique ID properly
+        return [SharedFile(None, line[0], line[1], line[2], []) for line in result]
 
-    @thread_safe
-    def new_share(self, new_file: SharedFile, origin: FileOrigin):
-        pass
+    @db_func
+    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile, origin: FileOrigin):
+        cursor.execute("INSERT INTO files values ('{file_name}', {mod_time}, {size}, '{origins}');".format(
+            file_name=new_file.name, mod_time=new_file.modification_time, size=new_file.size, origins=new_file.origins
+        ))
 
-    @thread_safe
-    def remove_share(self, removed_file: SharedFile, origin: FileOrigin):
+    @db_func
+    def remove_share(self, cursor: sqlite3.Cursor, removed_file: SharedFile, origin: FileOrigin):
+        # TODO: implement remove_share
         pass
