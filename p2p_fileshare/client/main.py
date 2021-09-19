@@ -21,7 +21,10 @@ def initialize_communication_channel(args):
 def perform_command(user_input: str, files_manager: FilesManager):
     if user_input.startswith("search "):
         filename = user_input.split(" ")[1]
-        print(files_manager.search_file(filename))
+        search_result = files_manager.search_file(filename)
+        for file in search_result:
+            print("Name: {name}, modification time: {mod_time}, size: {size}".format(
+                name=file.name, mod_time=file.modification_time, size=file.size))
     elif user_input.startswith("download "):
         unique_id = user_input.split(" ")[1]
         files_manager.download_file(unique_id)
