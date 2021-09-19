@@ -8,6 +8,7 @@ from select import select
 from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage
 
 
 logger = getLogger(__file__)
@@ -32,6 +33,18 @@ class ClientChannel(object):
                 msg = self._channel.recv_message()  # TODO: make sure an entire message was received
                 # TODO: perform actions with the command
                 logger.debug("received message: {}".format(msg))
+                response = self._do_action(msg)
+                self._channel.send_message(response)
+
+    def _do_action(self, msg: Message):
+        """
+        Perform an action according to the incoming message and returns an appropriate response message.
+        :param msg: The message received.
+        :return:
+        """
+        if isinstance(msg, SearchFileMessage):
+            matching_files = self._db.search_file(msg.name)
+            return FileListMessage(matching_files)
 
     def __stop(self):
         """
