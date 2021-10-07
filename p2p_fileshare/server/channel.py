@@ -8,7 +8,7 @@ from select import select
 from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
-from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage
+from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, SharedFileMessage
 
 
 logger = getLogger(__file__)
@@ -34,7 +34,8 @@ class ClientChannel(object):
                 # TODO: perform actions with the command
                 logger.debug("received message: {}".format(msg))
                 response = self._do_action(msg)
-                self._channel.send_message(response)
+                if response is not None:
+                    self._channel.send_message(response)
 
     def _do_action(self, msg: Message):
         """
@@ -45,6 +46,10 @@ class ClientChannel(object):
         if isinstance(msg, SearchFileMessage):
             matching_files = self._db.search_file(msg.name)
             return FileListMessage(matching_files)
+        if isinstance(msg, SharedFileMessage):
+            self._db.new_share(msg.file)
+
+        return None
 
     def __stop(self):
         """

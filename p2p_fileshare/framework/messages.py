@@ -1,5 +1,6 @@
 """
 A module containing Client - Server messages.
+TODO: Change all magic types into some form of an enum for better readability
 """
 import enum
 import struct
@@ -17,11 +18,11 @@ class Message(object):
 
     @classmethod
     def deserialize(cls, data):
+        known_message_types = [SearchFileMessage, FileListMessage, SharedFileMessage]
         msg_type = unpack("I", data[:4])[0]
-        if msg_type == SearchFileMessage.type():
-            return SearchFileMessage.deserialize(data)
-        elif msg_type == FileListMessage.type():
-            return FileListMessage.deserialize(data)
+        for known_message_type in known_message_types:
+            if msg_type == known_message_type.type():
+                return known_message_type.deserialize(data)
         raise RuntimeError("Failed to deserialize message! Got type: {}".format(msg_type))
 
     @property
@@ -44,7 +45,7 @@ class FileMessage(Message):
         name = data[4:4 + name_len].decode("utf-8")
         modification_time, size = struct.unpack("II", data[4 + name_len:12 + name_len])
         next_msg_offset = 12 + name_len  # TODO: Refactor this to be better - maybe use protobuf?
-        return FileMessage(SharedFile("", name, modification_time, size, [])), 12 + name_len
+        return FileMessage(SharedFile("", name, modification_time, size, [])), next_msg_offset
 
     def serialize(self):
         # TODO: serialize origins, unique id
@@ -107,3 +108,22 @@ class SearchFileMessage(Message):
     @property
     def matching_response_type(self):
         return FileListMessage
+
+
+class SharedFileMessage(Message):
+    def __init__(self, shared_file: SharedFile):
+        self.file = shared_file
+
+    @classmethod
+    def deserialize(cls, data):
+        file_message, _ = FileMessage.deserialize(data[4:])
+        shared_file = file_message.file
+        return SharedFileMessage(shared_file)
+
+    def serialize(self):
+        file_message = FileMessage(self.file)
+        return pack("I", self.type()) + file_message.serialize()
+
+    @classmethod
+    def type(cls):
+        return 3

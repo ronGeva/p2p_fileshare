@@ -53,7 +53,7 @@ class DBManager(object):
         return [SharedFile(None, line[0], line[1], line[2], []) for line in result]
 
     @db_func
-    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile, origin: FileOrigin):
+    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile):
         cursor.execute("INSERT INTO files values ('{file_name}', {mod_time}, {size}, '{origins}');".format(
             file_name=new_file.name, mod_time=new_file.modification_time, size=new_file.size, origins=new_file.origins
         ))
