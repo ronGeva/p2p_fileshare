@@ -31,6 +31,7 @@ def perform_command(user_input: str, files_manager: FilesManager):
     elif user_input.startswith("share "):
         file_path = user_input.split(" ")[1]
         files_manager.share_file(file_path)
+        # TODO: allow this call to raise exceptions, if they're not fatal catch them here and print them nicely
 
 
 def main(args):
