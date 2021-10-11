@@ -43,7 +43,7 @@ class DBManager(object):
     def __create_empty_db(path):
         with db_cursor(path) as cursor:
             cursor.execute("CREATE TABLE files (file_name text, modification_time integer, size integer, origins text);")
-            cursor.execute("CREATE TABLE origins (ip text, port integer);")
+            cursor.execute("CREATE TABLE origins (uniqueID text, PRIMARY KEY('uniqueID'))")
 
     @db_func
     def search_file(self, cursor: sqlite3.Cursor, filename: str):
@@ -61,9 +61,15 @@ class DBManager(object):
             file_name=new_file.name, mod_time=new_file.modification_time, size=new_file.size, origins=[row_id]
         ))
 
+    @staticmethod
+    def _does_client_exist(cursor: sqlite3.Cursor, unique_id: str):
+        cursor.execute("SELECT rowid from origins where uniqueID = '{unique_id}'".format(unique_id=unique_id))
+        return cursor.fetchone() is not None
+
     @db_func
     def add_new_client(self, cursor: sqlite3.Cursor, unique_id: str):
-        cursor.execute("INSERT INTO origins values ('{unique_id}')".format(unique_id=unique_id))
+        if not self._does_client_exist(cursor, unique_id):
+            cursor.execute("INSERT INTO origins values ('{unique_id}')".format(unique_id=unique_id))
 
     @db_func
     def remove_share(self, cursor: sqlite3.Cursor, removed_file: SharedFile, origin: FileOrigin):

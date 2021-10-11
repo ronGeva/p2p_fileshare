@@ -53,13 +53,16 @@ class ClientChannel(object):
         if isinstance(msg, SharedFileMessage):
             self._db.new_share(msg.file, self._client_id)
         if isinstance(msg, ClientIdMessage):
-            if msg.unique_id == msg.NO_ID_MAGIC:
+            unique_id = msg.unique_id
+            logger.debug("new client unique id is {}".format(unique_id))
+            if unique_id == msg.NO_ID_MAGIC:
                 unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()  # TODO: implement this better
                 self._db.add_new_client(unique_id)
                 self._client_id = unique_id
                 return ClientIdMessage(unique_id)
             else:
-                self._client_id = msg.unique_id
+                self._db.add_new_client(unique_id)
+                self._client_id = unique_id
 
         return None
 
