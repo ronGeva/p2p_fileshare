@@ -53,10 +53,17 @@ class DBManager(object):
         return [SharedFile(None, line[0], line[1], line[2], []) for line in result]
 
     @db_func
-    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile):
+    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile, origin: str):
+        cursor.execute("SELECT rowid from origins where uniqueID = '{origin}'".format(origin=origin))
+        row_id = cursor.fetchone()[0]
+        # TODO: add origin to existing origins instead of overriding them
         cursor.execute("INSERT INTO files values ('{file_name}', {mod_time}, {size}, '{origins}');".format(
-            file_name=new_file.name, mod_time=new_file.modification_time, size=new_file.size, origins=new_file.origins
+            file_name=new_file.name, mod_time=new_file.modification_time, size=new_file.size, origins=[row_id]
         ))
+
+    @db_func
+    def add_new_client(self, cursor: sqlite3.Cursor, unique_id: str):
+        cursor.execute("INSERT INTO origins values ('{unique_id}')".format(unique_id=unique_id))
 
     @db_func
     def remove_share(self, cursor: sqlite3.Cursor, removed_file: SharedFile, origin: FileOrigin):
