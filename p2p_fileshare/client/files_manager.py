@@ -23,7 +23,7 @@ class FilesManager(object):
 
     def share_file(self, file_path: str):
         file_stats = os.stat(file_path)
-        # TODO: what about unique ID during file share? The client cannot determine the unique id...
+        # TODO: implement unique id geneartion for file sharing.
         shared_file = SharedFile("", os.path.basename(file_path), int(file_stats.st_mtime), file_stats.st_size, [])
         shared_file_message = SharedFileMessage(shared_file)
         self._communication_channel.send_message(shared_file_message)
