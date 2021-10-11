@@ -18,7 +18,7 @@ class Message(object):
 
     @classmethod
     def deserialize(cls, data):
-        known_message_types = [SearchFileMessage, FileListMessage, SharedFileMessage]
+        known_message_types = [SearchFileMessage, FileListMessage, SharedFileMessage, ClientIdMessage]
         msg_type = unpack("I", data[:4])[0]
         for known_message_type in known_message_types:
             if msg_type == known_message_type.type():
@@ -127,3 +127,28 @@ class SharedFileMessage(Message):
     @classmethod
     def type(cls):
         return 3
+
+
+class ClientIdMessage(Message):
+    """
+    This message is used by the server to identify the client of its unique ID, to be used in all connections from now
+    on.
+    """
+    UNIQUE_ID_LENGTH = 32
+    NO_ID_MAGIC = 'ff' * 16
+
+    def __init__(self, unique_id: str):
+        self.unique_id = unique_id or self.NO_ID_MAGIC
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        unique_id = data[4: 4 + cls.UNIQUE_ID_LENGTH].decode("utf-8")
+        return ClientIdMessage(unique_id)
+
+    def serialize(self):
+        unique_id_data = self.unique_id.encode("utf-8")
+        return pack("I", self.type()) + unique_id_data
+
+    @classmethod
+    def type(cls):
+        return 4
