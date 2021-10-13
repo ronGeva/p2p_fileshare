@@ -30,11 +30,14 @@ def db_func(func):
     This function is thread safe via file locks.
     """
     def wrapper(instance, *args, **kwargs):
-        instance.lock.acquire()
-        with db_cursor(instance.db_path) as cursor:
-            func_res = func(instance, cursor, *args, **kwargs)
-        instance.lock.release()
-        return func_res
+        lock = FileLock(instance.lock_path)
+        try:
+            lock.acquire()
+            with db_cursor(instance.db_path) as cursor:
+                func_res = func(instance, cursor, *args, **kwargs)
+            return func_res
+        finally:
+            lock.release()  # lock must be freed even if the function failed
     return wrapper
 
 
@@ -48,7 +51,7 @@ class DBManager(object):
             self.__create_empty_db(self.db_path)
         else:
             assert isfile(self.db_path), "Fatal error: DB path is a directory!"
-        self.lock = FileLock("{prefix}.lock".format(prefix=self.db_path))
+        self.lock_path = "{prefix}.lock".format(prefix=self.db_path)
 
     @staticmethod
     def __create_empty_db(path):
