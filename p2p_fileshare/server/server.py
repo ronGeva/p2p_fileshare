@@ -27,7 +27,7 @@ class Server(object):
     def _check_for_new_clients(self):
         """
         Checks for a new client and create an appropriate channel for it.
-        :return:
+        :return: None.
         """
         rlist, _, _ = select([self._socket], [], [], 0)
         if rlist:
@@ -41,7 +41,7 @@ class Server(object):
         """
         Removes invalid communication channels from the list.
         """
-        pass
+        pass  # TODO: implement
 
     def main_loop(self):
         self._check_for_new_clients()
