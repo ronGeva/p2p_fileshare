@@ -131,3 +131,4 @@ dmypy.json
 
 *.db
 *CLIENT_ID.dat
+*.db.lock
