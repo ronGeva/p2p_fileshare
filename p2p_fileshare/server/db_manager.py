@@ -3,7 +3,6 @@ This modules governs DB-related actions.
 """
 import logging
 import sqlite3
-import inspect
 from contextlib import contextmanager
 from filelock import FileLock
 from os.path import exists, isfile
@@ -11,6 +10,7 @@ from p2p_fileshare.framework.types import SharedFile, FileOrigin
 
 
 logger = logging.getLogger(__file__)
+DB_LOCK_TIMEOUT = 10
 
 
 @contextmanager
@@ -31,14 +31,9 @@ def db_func(func):
     This function is thread safe via file locks.
     """
     def db_func_wrapper(instance, *args, **kwargs):
-        # find the name of the function 2 calls above us in the stack. The first will be the actual calling function,
-        # while the second will be its wrapper. If its wrapper is this function, we're guaranteed to enter a deadlock.
-        if inspect.stack()[2][3] == 'db_func_wrapper':
-            raise RuntimeError('A nested call to db_func_wrapper was called, which is guaranteed to cause a deadlock!')
-
         lock = FileLock(instance.lock_path)
         try:
-            lock.acquire()
+            lock.acquire(timeout=DB_LOCK_TIMEOUT)
             with db_cursor(instance.db_path) as cursor:
                 func_res = func(instance, cursor, *args, **kwargs)
             return func_res
