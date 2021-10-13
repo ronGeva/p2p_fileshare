@@ -70,7 +70,6 @@ class DBManager(object):
         """
         cursor.execute("SELECT * FROM files where file_name like '%{}%';".format(filename))
         result = cursor.fetchall()
-        # TODO: get unique ID properly
         return [SharedFile(line[3], line[0], line[1], line[2], []) for line in result]
 
     @staticmethod
