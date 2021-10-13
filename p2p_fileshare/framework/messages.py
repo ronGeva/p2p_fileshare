@@ -44,13 +44,14 @@ class FileMessage(Message):
         name_len = struct.unpack("I", data[:4])[0]
         name = data[4:4 + name_len].decode("utf-8")
         modification_time, size = struct.unpack("II", data[4 + name_len:12 + name_len])
-        next_msg_offset = 12 + name_len  # TODO: Refactor this to be better - maybe use protobuf?
-        return FileMessage(SharedFile("", name, modification_time, size, [])), next_msg_offset
+        unique_id = data[12 + name_len: 44 + name_len].decode('utf-8')  # unique id is 32 bytes long
+        next_msg_offset = 44 + name_len  # TODO: Refactor this to be better - maybe use protobuf?
+        return FileMessage(SharedFile(unique_id, name, modification_time, size, [])), next_msg_offset
 
     def serialize(self):
         # TODO: serialize origins, unique id
         data = struct.pack("I", len(self.file.name)) + self.file.name.encode("utf-8") + \
-               struct.pack("II", self.file.modification_time, self.file.size)
+               struct.pack("II", self.file.modification_time, self.file.size) + bytes(self.file.unique_id, 'utf-8')
         return data
 
     @property
