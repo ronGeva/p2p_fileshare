@@ -3,7 +3,7 @@ from socket import socket
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import ClientIdMessage
 from files_manager import FilesManager
-from os.path import abspath, dirname, join, exists
+from os.path import abspath, dirname, join
 
 
 CLIENT_ID_STORAGE = join(dirname(abspath(__file__)), 'CLIENT_ID.dat')
@@ -41,6 +41,11 @@ def perform_command(user_input: str, files_manager: FilesManager):
 
 
 def get_client_id() -> str:
+    """
+    Retrieves the client's unique id from a hard-coded path.
+    If the unique id is not found, returns None
+    :return string representing the unique id of the client (32 characters long), or None.
+    """
     try:
         with open(CLIENT_ID_STORAGE, 'r') as f:
             return f.read().strip()
