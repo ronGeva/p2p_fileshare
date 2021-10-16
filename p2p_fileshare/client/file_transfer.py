@@ -23,8 +23,8 @@ class FileDownloader(object):
         if self._file_data is invalid:
             self.stop()
 
-        self._file_object = FileObject(self._file_data, self._local_path)
-        self._file_object.verify_all_chunks() ## ?? maybe do it in FileObject init
+        self._file_object = FileObject(self._local_path, self._file_data)
+        assert self._file_object.verify_all_chunks() ## ?? maybe do it in FileObject init
 
     def __start(self):
         """

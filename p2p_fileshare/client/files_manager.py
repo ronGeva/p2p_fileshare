@@ -3,28 +3,14 @@ A module governing file access.
 """
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, SharedFileMessage
-from p2p_fileshare.framework.types import SharedFile
+from p2p_fileshare.framework.types import SharedFile, calculate_file_hash, FileObject
 import os
 import hashlib
-
+from threading import Lock
 
 class FilesManager(object):
     def __init__(self, communication_channel: Channel):
         self._communication_channel = communication_channel
-
-    @staticmethod
-    def _calculate_file_hash(file_path: str) -> str:
-        """
-        Calculates the hash of a local file's data by reading chunks of it and feeding them to the md5 algorithm.
-        :return an hexadecimal representation of the file's hash.
-        """
-        current_md5 = hashlib.md5()
-        with open(file_path, 'rb') as f:
-            file_chunk = f.read(1024 * 1024)
-            while len(file_chunk) > 0:
-                current_md5.update(file_chunk)
-                file_chunk = f.read(1024 * 1024)
-        return current_md5.hexdigest()
 
     def search_file(self, file_name: str) -> list[SharedFile]:
         """
@@ -42,10 +28,8 @@ class FilesManager(object):
         :param file_path: The local path of the file to share.
         :return: None
         """
-        file_stats = os.stat(file_path)
-        file_hash = self._calculate_file_hash(file_path)
-        shared_file = SharedFile(file_hash, os.path.basename(file_path), int(file_stats.st_mtime), file_stats.st_size,
-                                 [])
+        new_file = FileObject(file_path)
+        shared_file = new_file.get_shared_file()
         shared_file_message = SharedFileMessage(shared_file)
         self._communication_channel.send_message(shared_file_message)
         # TODO: implement file sharing server - from now on this client should allow other clients to download this file
