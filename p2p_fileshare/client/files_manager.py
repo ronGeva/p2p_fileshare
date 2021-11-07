@@ -5,6 +5,9 @@ from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
     SharingInfoRequestMessage, SharingInfoResponseMessage
 from p2p_fileshare.framework.types import SharedFile
+from file_share import FileShareServer
+from db_manager import DBManager
+from threading import Thread
 import os
 import hashlib
 
@@ -12,6 +15,19 @@ import hashlib
 class FilesManager(object):
     def __init__(self, communication_channel: Channel):
         self._communication_channel = communication_channel
+        self._local_db = DBManager()
+        self._file_share_server = None
+        self._file_share_thread = None
+        self.__initialize_file_share_server()
+
+    def __start_file_share(self):
+        self._file_share_server = FileShareServer(self._local_db)
+        self._file_share_thread = Thread(target=self._file_share_server.main_loop)
+        self._file_share_thread.start()
+
+    def __initialize_file_share_server(self):
+        if self._local_db.is_there_any_shared_file():
+            self.__start_file_share()
 
     @staticmethod
     def _calculate_file_hash(file_path: str) -> str:
@@ -34,7 +50,7 @@ class FilesManager(object):
         """
         msg = SearchFileMessage(file_name)
         self._communication_channel.send_message(msg)
-        return self._communication_channel.wait_for_response(FileListMessage).files
+        return self._communication_channel.wait_for_message(FileListMessage).files
         # TODO: get response and return it
 
     def share_file(self, file_path: str):
@@ -49,10 +65,13 @@ class FilesManager(object):
                                  [])
         shared_file_message = ShareFileMessage(shared_file, 0)
         self._communication_channel.send_message(shared_file_message)
-        # TODO: implement file sharing server - from now on this client should allow other clients to download this file
+
+        self._local_db.add_share(file_hash, file_path)
+        if self._file_share_server is None:
+            self.__start_file_share()
 
     def download_file(self, unique_id: str):
         sharing_info_request = SharingInfoRequestMessage(unique_id)
         self._communication_channel.send_message(sharing_info_request)
-        shared_file_info = self._communication_channel.wait_for_response(SharingInfoResponseMessage).shared_file
+        shared_file_info = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
         # TODO: we now have all the information needed to initialize the file download. Implement the file download
