@@ -17,7 +17,7 @@ class Channel(object):
         :return: A Message object containing the server's response.
         """
         self.send_message(message)
-        return self.wait_for_response(message.matching_response_type)
+        return self.wait_for_message(message.matching_response_type)
 
     def send_message(self, message: Message):
         data = message.serialize()
@@ -32,7 +32,7 @@ class Channel(object):
         msg_data = self._socket.recv(msg_len)
         return Message.deserialize(msg_data)
 
-    def wait_for_response(self, expected_msg_type: type, timeout=None):
+    def wait_for_message(self, expected_msg_type: type, timeout=None):
         while True:  # TODO: implement stop condition
             new_msg = self.recv_message()
             if isinstance(new_msg, expected_msg_type):

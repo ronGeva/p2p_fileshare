@@ -21,7 +21,7 @@ class Message(object):
     @classmethod
     def deserialize(cls, data):
         known_message_types = [SearchFileMessage, FileListMessage, ShareFileMessage, ClientIdMessage,
-                               SharingInfoResponseMessage, SharingInfoRequestMessage]
+                               SharingInfoResponseMessage, SharingInfoRequestMessage, StartFileTransferMessage]
         msg_type = unpack("I", data[:4])[0]
         for known_message_type in known_message_types:
             if msg_type == known_message_type.type():
@@ -159,10 +159,10 @@ class ClientIdMessage(Message):
         return 4
 
 
-class SharingInfoRequestMessage(Message):
+class FileDownloadRequest(Message):
     """
-    This message is used by the client to retrieve information about clients that share a specific file.
-    It is used by clients to initialize file download.
+    This message represents all messages including only the unique id of the file.
+    Messages which only need to transfer this data can inherit from this class and only implement the type method.
     """
     def __init__(self, file_unique_id: str):
         self.file_unique_id = file_unique_id
@@ -176,9 +176,24 @@ class SharingInfoRequestMessage(Message):
         unique_id_data = self.file_unique_id.encode("utf-8")
         return pack("I", self.type()) + unique_id_data
 
+
+class SharingInfoRequestMessage(FileDownloadRequest):
+    """
+    This message is used by the client to retrieve information about clients that share a specific file.
+    It is used by clients to initialize file download.
+    """
     @classmethod
     def type(cls):
         return 5
+
+
+class StartFileTransferMessage(FileDownloadRequest):
+    """
+    This message is used by the client to let another client (the sharing client) know what file he'd like to download.
+    """
+    @classmethod
+    def type(cls):
+        return 7
 
 
 class SharingInfoResponseMessage(Message):
