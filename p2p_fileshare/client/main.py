@@ -64,7 +64,7 @@ def resolve_id(communication_channel: Channel):
     client_id_msg = ClientIdMessage(client_id)
     communication_channel.send_message(client_id_msg)  # notify the server of our current id
     if client_id is None:
-        client_id_msg = communication_channel.wait_for_response(ClientIdMessage, timeout=ID_RETRIEVAL_TIMEOUT)
+        client_id_msg = communication_channel.wait_for_message(ClientIdMessage, timeout=ID_RETRIEVAL_TIMEOUT)
         with open(CLIENT_ID_STORAGE, 'w') as f:
             f.write(client_id_msg.unique_id)
 
