@@ -29,11 +29,14 @@ class Channel(object):
             if rlist:
                 new_data = self._socket.recv(data_len-len(received_data))
                 if len(new_data) != 0:
+                    self._is_socket_closed = True
                     raise SocketClosedException()
                 received_data += new_data
         return received_data
 
     def send_message(self, message: Message):
+        if self._is_socket_closed:
+            raise SocketClosedException()
         data = message.serialize()
         data_len = len(data)
         len_data = pack("I", data_len)
@@ -41,6 +44,8 @@ class Channel(object):
         self._socket.send(full_message)
 
     def recv_message(self):
+        if self._is_socket_closed:
+            raise SocketClosedException()
         len_data = self._get_data_from_sock(4)
         msg_len = unpack("I", len_data)[0]
         msg_data = self._get_data_from_sock(len_data)
@@ -57,3 +62,7 @@ class Channel(object):
 
     def getsockname(self):
         return self._socket.getsockname()
+
+    def close(self):
+        self._socket.close()
+        self._is_socket_closed = True

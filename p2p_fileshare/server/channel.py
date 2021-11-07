@@ -23,7 +23,7 @@ class ClientChannel(object):
     def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable):
         self._channel = client_channel
         self._db = db
-        self._closed = False
+        self._closed = False # TODO: check if needed
         self._client_id = None
         self._thread = Thread(target=self.__start)
         self._thread.start()
@@ -35,7 +35,7 @@ class ClientChannel(object):
         This is the channel start routine which is called at its initialization and invoked as a seperated thread.
         All logic within this function must be thread safe.
         """
-        while not self._closed:
+        while not self._channel._is_socket_closed:
             rlist, _, _ = select([self._channel], [], [], 0)
             if rlist:
                 msg = self._channel.recv_message()  # TODO: make sure an entire message was received
