@@ -94,3 +94,7 @@ class ClientChannel(object):
         contact it in order to initialize file downloads.
         """
         return self._client_id, self._channel.getsockname()[0], self._client_share_port
+
+    @property
+    def is_active(self):
+        return self._thread.is_alive()

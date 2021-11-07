@@ -41,9 +41,18 @@ class Server(object):
         """
         Removes invalid communication channels from the list.
         """
-        pass  # TODO: implement
+        remove_list = []
+        for communication_channel in self._communication_channels:
+            if not communication_channel.is_active:
+                remove_list.append(communication_channel)
+        for item in remove_list:
+            logger.debug("Removing inactive channel with client {}".format(item.get_client_connection_info()[0]))
+            self._communication_channels.remove(item)
 
     def main_loop(self):
+        # TODO: this method performs a busy wait which is very inefficient. This was done since Windows does not support
+        # using "select" on non-socket file descriptors, which made it hard for us to properly realize when a client
+        # channel has crashed without iterating through them all
         self._check_for_new_clients()
         self._remove_old_clients()
 
