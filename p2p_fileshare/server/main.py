@@ -1,14 +1,14 @@
 import sys
 import socket
 import logging
-from server import Server
+from server import MetadataServer
 
 
 def main(args):
     # TODO: parse args
     logging.basicConfig()
     logging.getLogger().setLevel(logging.DEBUG)  # TODO: make this configurable
-    server = Server()
+    server = MetadataServer()
     while True:
         server.main_loop()
 

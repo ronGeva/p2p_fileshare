@@ -4,66 +4,19 @@ This modules governs DB-related actions.
 import logging
 import sqlite3
 from contextlib import contextmanager
-from filelock import FileLock
-from os.path import exists, isfile
 from p2p_fileshare.framework.types import SharedFile, FileOrigin
+from p2p_fileshare.framework.db import AbstractDBManager, db_func
 
 
 logger = logging.getLogger(__file__)
-DB_LOCK_TIMEOUT = 10
 
 
-@contextmanager
-def db_cursor(path: str) -> sqlite3.Cursor:
-    """
-    This function yields a DB cursor to the sqlite db whose file is located at path.
-    """
-    conn = sqlite3.connect(path)
-    cursor = conn.cursor()
-    yield cursor
-    conn.commit()
-    conn.close()
-
-
-def db_func(func):
-    """
-    A decorator wrapping a DBManager method so that its second parameter (after self) will be a cursor to its DB.
-    This function is thread safe via file locks.
-    """
-    def db_func_wrapper(instance, *args, **kwargs):
-        lock = FileLock(instance.lock_path)
-        try:
-            lock.acquire(timeout=DB_LOCK_TIMEOUT)
-            with db_cursor(instance.db_path) as cursor:
-                func_res = func(instance, cursor, *args, **kwargs)
-            return func_res
-        finally:
-            lock.release()  # lock must be freed even if the function failed
-    return db_func_wrapper
-
-
-class DBManager(object):
-    # TODO: patch sql injections all over this class
-    DEFAULT_DB_PATH = "server_db.db"
-
-    def __init__(self, db_path=None):
-        self.db_path = db_path or self.DEFAULT_DB_PATH
-        if not exists(self.db_path):
-            self.__create_empty_db(self.db_path)
-        else:
-            assert isfile(self.db_path), "Fatal error: DB path is a directory!"
-        self.lock_path = "{prefix}.lock".format(prefix=self.db_path)
-
-    @staticmethod
-    def __create_empty_db(path):
-        """
-        Initializes the DB with the required tables for the application to function properly.
-        """
-        with db_cursor(path) as cursor:
-            cursor.execute("CREATE TABLE files (file_name text, modification_time integer, size integer, "
-                           "unique_id text, PRIMARY KEY('unique_id'));")
-            cursor.execute("CREATE TABLE origins (unique_id text, PRIMARY KEY('unique_id'))")
-            cursor.execute("CREATE TABLE shares (file text , origin text, PRIMARY KEY ('file', 'origin'))")
+class DBManager(AbstractDBManager):
+    def _create_empty_db(self, cursor):
+        cursor.execute("CREATE TABLE files (file_name text, modification_time integer, size integer, "
+                       "unique_id text, PRIMARY KEY('unique_id'));")
+        cursor.execute("CREATE TABLE origins (unique_id text, PRIMARY KEY('unique_id'))")
+        cursor.execute("CREATE TABLE shares (file text , origin text, PRIMARY KEY ('file', 'origin'))")
 
     @db_func
     def search_file(self, cursor: sqlite3.Cursor, filename: str) -> list[SharedFile]:
