@@ -34,7 +34,7 @@ class Server(object):
             new_client, client_address = self._socket.accept()
             logger.debug("Accepted new client: {}".format(client_address))
             new_channel = Channel(new_client)
-            new_comm_channel = ClientChannel(new_channel, self._db)
+            new_comm_channel = ClientChannel(new_channel, self._db, self.get_all_clients_info)
             self._communication_channels.append(new_comm_channel)
 
     def _remove_old_clients(self):
@@ -46,3 +46,6 @@ class Server(object):
     def main_loop(self):
         self._check_for_new_clients()
         self._remove_old_clients()
+
+    def get_all_clients_info(self):
+        return [channel.get_client_connection_info() for channel in self._communication_channels]

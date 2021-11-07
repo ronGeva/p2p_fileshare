@@ -8,8 +8,10 @@ from select import select
 from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
-from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, SharedFileMessage, \
-    ClientIdMessage
+from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
+    ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage
+from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
+from typing import Callable
 import time
 import hashlib
 
@@ -18,13 +20,15 @@ logger = getLogger(__file__)
 
 
 class ClientChannel(object):
-    def __init__(self, client_channel: Channel, db: DBManager):
+    def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable):
         self._channel = client_channel
         self._db = db
         self._closed = False
         self._client_id = None
         self._thread = Thread(target=self.__start)
         self._thread.start()
+        self._get_all_clients_func = get_all_clients_func
+        self._client_share_port = None
 
     def __start(self):
         """
@@ -50,7 +54,8 @@ class ClientChannel(object):
         if isinstance(msg, SearchFileMessage):
             matching_files = self._db.search_file(msg.name)
             return FileListMessage(matching_files)
-        if isinstance(msg, SharedFileMessage):
+        if isinstance(msg, ShareFileMessage):
+            self._client_share_port = msg.share_port
             self._db.new_share(msg.file, self._client_id)
         if isinstance(msg, ClientIdMessage):
             unique_id = msg.unique_id
@@ -63,6 +68,17 @@ class ClientChannel(object):
             else:
                 self._db.add_new_client(unique_id)
                 self._client_id = unique_id
+        if isinstance(msg, SharingInfoRequestMessage):
+            sharing_clients = self._db.find_sharing_clients(msg.file_unique_id)
+            current_clients = self._get_all_clients_func()
+
+            # filter out current clients which do not share the file
+            connected_sharing_clients_info = [current_client for current_client in current_clients
+                                              if current_client[0] in sharing_clients]
+            connected_sharing_clients = [SharingClientInfo((sharing_client[1], sharing_client[2])) for sharing_client
+                                         in connected_sharing_clients_info]
+            shared_file_info = SharedFileInfo(msg.file_unique_id, connected_sharing_clients)
+            return SharingInfoResponseMessage(shared_file_info)
 
         return None
 
@@ -71,3 +87,10 @@ class ClientChannel(object):
         Stops the channel's thread and signal the main Server component that this channel is invalid.
         """
         raise NotImplementedError
+
+    def get_client_connection_info(self):
+        """
+        Returns a 3 tuple containing the client id, its current IP address, and the port in which other clients can
+        contact it in order to initialize file downloads.
+        """
+        return self._client_id, self._channel.getsockname()[0], self._client_share_port

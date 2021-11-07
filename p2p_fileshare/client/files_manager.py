@@ -2,7 +2,8 @@
 A module governing file access.
 """
 from p2p_fileshare.framework.channel import Channel
-from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, SharedFileMessage
+from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
+    SharingInfoRequestMessage, SharingInfoResponseMessage
 from p2p_fileshare.framework.types import SharedFile
 import os
 import hashlib
@@ -46,9 +47,12 @@ class FilesManager(object):
         file_hash = self._calculate_file_hash(file_path)
         shared_file = SharedFile(file_hash, os.path.basename(file_path), int(file_stats.st_mtime), file_stats.st_size,
                                  [])
-        shared_file_message = SharedFileMessage(shared_file)
+        shared_file_message = ShareFileMessage(shared_file, 0)
         self._communication_channel.send_message(shared_file_message)
         # TODO: implement file sharing server - from now on this client should allow other clients to download this file
 
     def download_file(self, unique_id: str):
-        raise NotImplementedError
+        sharing_info_request = SharingInfoRequestMessage(unique_id)
+        self._communication_channel.send_message(sharing_info_request)
+        shared_file_info = self._communication_channel.wait_for_response(SharingInfoResponseMessage).shared_file
+        # TODO: we now have all the information needed to initialize the file download. Implement the file download

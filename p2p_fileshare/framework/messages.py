@@ -5,8 +5,10 @@ TODO: Change all magic types into some form of an enum for better readability
 import enum
 import struct
 from struct import pack, unpack
-from p2p_fileshare.framework.types import SharedFile
+from socket import inet_aton, inet_ntoa
+from p2p_fileshare.framework.types import SharedFile, SharingClientInfo, SharedFileInfo
 
+UNIQUE_ID_LENGTH = 32
 
 class MessageType(enum.Enum):
     pass
@@ -18,7 +20,8 @@ class Message(object):
 
     @classmethod
     def deserialize(cls, data):
-        known_message_types = [SearchFileMessage, FileListMessage, SharedFileMessage, ClientIdMessage]
+        known_message_types = [SearchFileMessage, FileListMessage, ShareFileMessage, ClientIdMessage,
+                               SharingInfoResponseMessage, SharingInfoRequestMessage]
         msg_type = unpack("I", data[:4])[0]
         for known_message_type in known_message_types:
             if msg_type == known_message_type.type():
@@ -111,19 +114,21 @@ class SearchFileMessage(Message):
         return FileListMessage
 
 
-class SharedFileMessage(Message):
-    def __init__(self, shared_file: SharedFile):
+class ShareFileMessage(Message):
+    def __init__(self, shared_file: SharedFile, share_port: int):
         self.file = shared_file
+        self.share_port = share_port
 
     @classmethod
     def deserialize(cls, data):
-        file_message, _ = FileMessage.deserialize(data[4:])
+        file_message, file_msg_len = FileMessage.deserialize(data[4:])
         shared_file = file_message.file
-        return SharedFileMessage(shared_file)
+        port = unpack("H", data[4 + file_msg_len: 6 + file_msg_len])[0]
+        return ShareFileMessage(shared_file, port)
 
     def serialize(self):
         file_message = FileMessage(self.file)
-        return pack("I", self.type()) + file_message.serialize()
+        return pack("I", self.type()) + file_message.serialize() + pack("H", self.share_port)
 
     @classmethod
     def type(cls):
@@ -135,7 +140,6 @@ class ClientIdMessage(Message):
     This message is used by the server to identify the client of its unique ID, to be used in all connections from now
     on.
     """
-    UNIQUE_ID_LENGTH = 32
     NO_ID_MAGIC = 'ff' * 16
 
     def __init__(self, unique_id: str):
@@ -143,7 +147,7 @@ class ClientIdMessage(Message):
 
     @classmethod
     def deserialize(cls, data: bytes):
-        unique_id = data[4: 4 + cls.UNIQUE_ID_LENGTH].decode("utf-8")
+        unique_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
         return ClientIdMessage(unique_id)
 
     def serialize(self):
@@ -153,3 +157,64 @@ class ClientIdMessage(Message):
     @classmethod
     def type(cls):
         return 4
+
+
+class SharingInfoRequestMessage(Message):
+    """
+    This message is used by the client to retrieve information about clients that share a specific file.
+    It is used by clients to initialize file download.
+    """
+    def __init__(self, file_unique_id: str):
+        self.file_unique_id = file_unique_id
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        unique_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        return SharingInfoRequestMessage(unique_id)
+
+    def serialize(self):
+        unique_id_data = self.file_unique_id.encode("utf-8")
+        return pack("I", self.type()) + unique_id_data
+
+    @classmethod
+    def type(cls):
+        return 5
+
+
+class SharingInfoResponseMessage(Message):
+    """
+    A response to SharingInfoRequestMessage, containing information about all the clients that share a specific file.
+    NOTE: This message serializes a non-existing port to 0 and deserialize the sharing port 0 as a non-existent sharing
+    port.
+    """
+    def __init__(self, shared_file: SharedFileInfo):
+        self.shared_file = shared_file
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        unique_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        amount_of_sharing_clients = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
+        sharing_clients = []
+        index = 8 + UNIQUE_ID_LENGTH
+        for _ in range(amount_of_sharing_clients):
+            ip = inet_ntoa(data[index: index + 4])
+            port = unpack("H", data[index + 4: index + 6])[0]
+            if port == 0:
+                port = None
+            sharing_clients.append(SharingClientInfo((ip, port)))
+            index += 6
+        return SharingInfoResponseMessage(SharedFileInfo(unique_id, sharing_clients))
+
+    def serialize(self):
+        amount_of_sharing_clients_data = pack("I", len(self.shared_file.sharing_clients))
+        unique_id_data = self.shared_file.unique_id.encode("utf-8")
+        sharing_clients_data = bytes()
+        for sharing_client in self.shared_file.sharing_clients:
+            sharing_clients_data += inet_aton(sharing_client.ip)
+            port = sharing_client.port if sharing_client.port is not None else 0
+            sharing_clients_data += pack("H", port)
+        return pack("I", self.type()) + unique_id_data + amount_of_sharing_clients_data + sharing_clients_data
+
+    @classmethod
+    def type(cls):
+        return 6

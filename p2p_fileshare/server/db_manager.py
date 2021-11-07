@@ -134,3 +134,13 @@ class DBManager(object):
         """
         # TODO: implement remove_share
         pass
+
+    @db_func
+    def find_sharing_clients(self, cursor: sqlite3.Cursor, file_unique_id: str):
+        """
+        Retrieves all the clients (identified by their unique id) that share the file identified by the unique id
+        supplied to this method.
+        """
+        cursor.execute("select origin from shares where file = '{file_unique_id}'".format(
+            file_unique_id=file_unique_id))
+        return [line[0] for line in cursor.fetchall()]

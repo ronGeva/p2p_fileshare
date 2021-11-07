@@ -40,3 +40,6 @@ class Channel(object):
 
     def fileno(self):
         return self._socket.fileno()
+
+    def getsockname(self):
+        return self._socket.getsockname()

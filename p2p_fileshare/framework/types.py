@@ -22,3 +22,14 @@ class SharedFile(object):
     @property
     def download_state(self):
         return self.downloaded_bytes / self.size
+
+
+class SharingClientInfo(object):
+    def __init__(self, sockname: tuple[str, int]):
+        self.ip, self.port = sockname
+
+
+class SharedFileInfo(object):
+    def __init__(self, unique_id: str, sharing_clients: list[SharingClientInfo]):
+        self.unique_id = unique_id
+        self.sharing_clients = sharing_clients
