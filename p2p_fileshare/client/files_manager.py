@@ -21,6 +21,8 @@ class FilesManager(object):
         self.__initialize_file_share_server()
 
     def __start_file_share(self):
+        # TODO: pass the sharing port to the server. Right now after stopping the app and starting it back on again
+        # the server won't know our sharing port until we share a new file
         self._file_share_server = FileShareServer(self._local_db)
         self._file_share_thread = Thread(target=self._file_share_server.main_loop)
         self._file_share_thread.start()
@@ -51,7 +53,6 @@ class FilesManager(object):
         msg = SearchFileMessage(file_name)
         self._communication_channel.send_message(msg)
         return self._communication_channel.wait_for_message(FileListMessage).files
-        # TODO: get response and return it
 
     def share_file(self, file_path: str):
         """
@@ -63,15 +64,18 @@ class FilesManager(object):
         file_hash = self._calculate_file_hash(file_path)
         shared_file = SharedFile(file_hash, os.path.basename(file_path), int(file_stats.st_mtime), file_stats.st_size,
                                  [])
-        shared_file_message = ShareFileMessage(shared_file, 0)
-        self._communication_channel.send_message(shared_file_message)
 
         self._local_db.add_share(file_hash, file_path)
         if self._file_share_server is None:
             self.__start_file_share()
+
+        shared_file_message = ShareFileMessage(shared_file, self._file_share_server.sharing_port)
+        self._communication_channel.send_message(shared_file_message)
+
 
     def download_file(self, unique_id: str):
         sharing_info_request = SharingInfoRequestMessage(unique_id)
         self._communication_channel.send_message(sharing_info_request)
         shared_file_info = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
         # TODO: we now have all the information needed to initialize the file download. Implement the file download
+        pass

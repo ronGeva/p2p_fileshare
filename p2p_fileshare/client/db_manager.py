@@ -8,6 +8,8 @@ from p2p_fileshare.framework.db import AbstractDBManager, db_func
 
 
 class DBManager(AbstractDBManager):
+    DEFAULT_DB_PATH = "client_db.db"
+
     def _create_empty_db(self, cursor):
         cursor.execute("CREATE TABLE files (file_path text, unique_id text, PRIMARY KEY('unique_id'));")
 

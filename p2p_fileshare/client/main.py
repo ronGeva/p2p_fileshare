@@ -29,8 +29,8 @@ def perform_command(user_input: str, files_manager: FilesManager):
         filename = user_input.split(" ")[1]
         search_result = files_manager.search_file(filename)
         for file in search_result:
-            print("Name: {name}, modification time: {mod_time}, size: {size}".format(
-                name=file.name, mod_time=file.modification_time, size=file.size))
+            print("Name: {name}, modification time: {mod_time}, size: {size}, unqiue_id: {unique_id}".format(
+                name=file.name, mod_time=file.modification_time, size=file.size, unique_id=file.unique_id))
     elif user_input.startswith("download "):
         unique_id = user_input.split(" ")[1]
         files_manager.download_file(unique_id)

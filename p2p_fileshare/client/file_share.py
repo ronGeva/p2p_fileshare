@@ -49,3 +49,7 @@ class FileShareServer(Server):
 
     def _remove_old_clients(self):
         pass  # TODO: implement
+
+    @property
+    def sharing_port(self):
+        return self._socket.getsockname()[1]
