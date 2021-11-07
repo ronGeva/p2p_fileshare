@@ -8,6 +8,10 @@ from select import select
 from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, SharedFileMessage, \
+    ClientIdMessage
+import time
+import hashlib
 
 
 logger = getLogger(__file__)
@@ -18,6 +22,7 @@ class ClientChannel(object):
         self._channel = client_channel
         self._db = db
         self._closed = False
+        self._client_id = None
         self._thread = Thread(target=self.__start)
         self._thread.start()
 
@@ -32,6 +37,34 @@ class ClientChannel(object):
                 msg = self._channel.recv_message()  # TODO: make sure an entire message was received
                 # TODO: perform actions with the command
                 logger.debug("received message: {}".format(msg))
+                response = self._do_action(msg)
+                if response is not None:
+                    self._channel.send_message(response)
+
+    def _do_action(self, msg: Message):
+        """
+        Perform an action according to the incoming message and returns an appropriate response message.
+        :param msg: The message received.
+        :return:
+        """
+        if isinstance(msg, SearchFileMessage):
+            matching_files = self._db.search_file(msg.name)
+            return FileListMessage(matching_files)
+        if isinstance(msg, SharedFileMessage):
+            self._db.new_share(msg.file, self._client_id)
+        if isinstance(msg, ClientIdMessage):
+            unique_id = msg.unique_id
+            logger.debug("new client unique id is {}".format(unique_id))
+            if unique_id == msg.NO_ID_MAGIC:
+                unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()  # TODO: implement this better
+                self._db.add_new_client(unique_id)
+                self._client_id = unique_id
+                return ClientIdMessage(unique_id)
+            else:
+                self._db.add_new_client(unique_id)
+                self._client_id = unique_id
+
+        return None
 
     def __stop(self):
         """

@@ -7,7 +7,7 @@ from server import Server
 def main(args):
     # TODO: parse args
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)  # TODO: make this configurable
     server = Server()
     while True:
         server.main_loop()
