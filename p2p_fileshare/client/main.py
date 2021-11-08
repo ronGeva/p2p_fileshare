@@ -32,8 +32,8 @@ def perform_command(user_input: str, files_manager: FilesManager):
         for file in search_result:
             print(f"Name: {file.name}, modification time: {file.modification_time}, size: {file.size}, unqiue_id: {file.unique_id}")
     elif user_input.startswith("download "):
-        unique_id = user_input.split(" ")[1]
-        files_manager.download_file(unique_id)
+        unique_id, local_path = user_input.split(" ")[1:]
+        files_manager.download_file(unique_id, local_path)
     elif user_input.startswith("share "):
         file_path = user_input.split(" ")[1]
         files_manager.share_file(file_path)

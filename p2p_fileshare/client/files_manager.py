@@ -73,7 +73,7 @@ class FilesManager(object):
         self._communication_channel.send_message(shared_file_message)
 
 
-    def download_file(self, unique_id: str):
+    def download_file(self, unique_id: str, local_path: str):
         sharing_info_request = SharingInfoRequestMessage(unique_id)
         self._communication_channel.send_message(sharing_info_request)
         shared_file_info = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
