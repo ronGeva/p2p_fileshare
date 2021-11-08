@@ -35,7 +35,7 @@ class MetadataServer(Server):
             if not communication_channel.is_active:
                 remove_list.append(communication_channel)
         for item in remove_list:
-            logger.debug("Removing inactive channel with client {}".format(item.get_client_connection_info()[0]))
+            logger.debug(f"Removing inactive channel with client {item.get_client_connection_info()[0]}")
             self._communication_channels.remove(item)
 
     def get_all_clients_info(self):

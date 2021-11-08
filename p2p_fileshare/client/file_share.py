@@ -20,7 +20,7 @@ def transfer_file_to_client(downloader_socket: socket.socket, db_manager: DBMana
     unique_id = channel.wait_for_message(StartFileTransferMessage).unique_id
     file_path = db_manager.get_shared_file_path(unique_id)
     if file_path is None:
-        logger.warning("A client has requested a file which this client does not share. ID: {}".format(unique_id))
+        logger.warning(f"A client has requested a file which this client does not share. ID: {unique_id}")
         return  # maybe raise?
     # TODO: we now have the file path and the channel to the client. Wait for the client to request chunks of the file
     # and transfer them to it via channel.send_message(...)

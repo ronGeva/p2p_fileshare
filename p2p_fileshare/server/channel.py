@@ -9,7 +9,7 @@ from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
-    ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage
+    ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage
 from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
 from typing import Callable
 import time
@@ -40,7 +40,7 @@ class ClientChannel(object):
             if rlist:
                 msg = self._channel.recv_message()  # TODO: make sure an entire message was received
                 # TODO: perform actions with the command
-                logger.debug("received message: {}".format(msg))
+                logger.debug(f"received message: {msg}")
                 response = self._do_action(msg)
                 if response is not None:
                     self._channel.send_message(response)
@@ -56,10 +56,12 @@ class ClientChannel(object):
             return FileListMessage(matching_files)
         if isinstance(msg, ShareFileMessage):
             self._client_share_port = msg.share_port
-            self._db.new_share(msg.file, self._client_id)
+            if self._db.new_share(msg.file, self._client_id):
+                return GeneralSuccessMessage('File shared successfully!')
+            return GeneralErrorMessage('File is already shared!')
         if isinstance(msg, ClientIdMessage):
             unique_id = msg.unique_id
-            logger.debug("new client unique id is {}".format(unique_id))
+            logger.debug(f"new client unique id is {unique_id}")
             if unique_id == msg.NO_ID_MAGIC:
                 unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()  # TODO: implement this better
                 self._db.add_new_client(unique_id)
@@ -73,10 +75,8 @@ class ClientChannel(object):
             current_clients = self._get_all_clients_func()
 
             # filter out current clients which do not share the file
-            connected_sharing_clients_info = [current_client for current_client in current_clients
+            connected_sharing_clients = [SharingClientInfo(current_client[1], [2]) for current_client in current_clients
                                               if current_client[0] in sharing_clients]
-            connected_sharing_clients = [SharingClientInfo((sharing_client[1], sharing_client[2])) for sharing_client
-                                         in connected_sharing_clients_info]
             shared_file_info = SharedFileInfo(msg.file_unique_id, connected_sharing_clients)
             return SharingInfoResponseMessage(shared_file_info)
 

@@ -52,7 +52,7 @@ class AbstractDBManager(ABC):
             self.create_empty_db()
         else:
             assert isfile(self.db_path), "Fatal error: DB path is a directory!"
-        self.lock_path = "{prefix}.lock".format(prefix=self.db_path)
+        self.lock_path = f"{self.db_path}.lock"
 
     def create_empty_db(self):
         with db_cursor(self.db_path) as cursor:

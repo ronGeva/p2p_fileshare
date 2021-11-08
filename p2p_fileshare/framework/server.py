@@ -23,7 +23,7 @@ class Server(ABC):
         self._socket = socket.socket()
         self._socket.bind(('0.0.0.0', 0))
         self._socket.listen(MAX_PENDING_CLIENTS)
-        logger.debug("Starting server at address: {}".format(self._socket.getsockname()))
+        logger.debug(f"Starting server at address: {self._socket.getsockname()}")
 
     @abstractmethod
     def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int]):
@@ -37,7 +37,7 @@ class Server(ABC):
         rlist, _, _ = select([self._socket], [], [], 0)
         if rlist:
             new_client, client_address = self._socket.accept()
-            logger.debug("Accepted new client: {}".format(client_address))
+            logger.debug(f"Accepted new client: {client_address}")
             self._receive_new_client(new_client, client_address)
 
     @abstractmethod

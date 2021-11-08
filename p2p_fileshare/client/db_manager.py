@@ -15,7 +15,7 @@ class DBManager(AbstractDBManager):
 
     @db_func
     def get_shared_file_path(self, cursor: sqlite3.Cursor, unique_id: str):
-        cursor.execute("select path from files where unique_id='{unique_id}'".format(unique_id=unique_id))
+        cursor.execute(f"select path from files where unique_id='{unique_id}'")
         result = cursor.fetchall()
         if len(result) == 0:
             return None
@@ -28,5 +28,4 @@ class DBManager(AbstractDBManager):
 
     @db_func
     def add_share(self, cursor: sqlite3.Cursor, unique_id: str, file_path: str):
-        cursor.execute("insert into files values ('{file_path}', '{unique_id}')".format(
-            file_path=file_path, unique_id=unique_id))
+        cursor.execute(f"insert into files values ('{file_path}', '{unique_id}')")

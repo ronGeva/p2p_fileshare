@@ -10,23 +10,40 @@ from p2p_fileshare.framework.types import SharedFile, SharingClientInfo, SharedF
 
 UNIQUE_ID_LENGTH = 32
 
+GENERAL_SUCESS_MESSAGE_TYPE = 0
+GENERAL_ERROR_MESSAGE_TYPE = 999
+SEARCH_FILE_MESSAGE_TYPE = 1
+FILE_LIST_MESSAGE_TYPE = 2
+FILE_MESSAGE_TYPE = 3
+SHARE_FILE_MESSAGE_TYPE = 4
+CLIENT_ID_MESSAGE_TYPE = 5
+SHARING_INFO_REQUEST_MESSAGE_TYPE = 6
+SHARING_INFO_RESPONSE_MESSAGE_TYPE = 7
+START_FILE_TRANSFER_MESSAGE_TYPE = 8
+
+
 class MessageType(enum.Enum):
     pass
 
 
 class Message(object):
+    message_types = {SEARCH_FILE_MESSAGE_TYPE: SearchFileMessage,
+                     FILE_LIST_MESSAGE_TYPE: FileListMessage,
+                     SHARE_FILE_MESSAGE_TYPE: ShareFileMessage,
+                     CLIENT_ID_MESSAGE_TYPE: ClientIdMessage,
+                     SHARING_INFO_REQUEST_MESSAGE_TYPE: SharingInfoRequestMessage,
+                     SHARING_INFO_RESPONSE_MESSAGE_TYPE: SharingInfoResponseMessage,
+                     START_FILE_TRANSFER_MESSAGE_TYPE: StartFileTransferMessage}
+
     def serialize(self):
         raise NotImplementedError
 
     @classmethod
     def deserialize(cls, data):
-        known_message_types = [SearchFileMessage, FileListMessage, ShareFileMessage, ClientIdMessage,
-                               SharingInfoResponseMessage, SharingInfoRequestMessage, StartFileTransferMessage]
         msg_type = unpack("I", data[:4])[0]
-        for known_message_type in known_message_types:
-            if msg_type == known_message_type.type():
-                return known_message_type.deserialize(data)
-        raise RuntimeError("Failed to deserialize message! Got type: {}".format(msg_type))
+        if msg_type in message_types:
+            return message_types[msg_type].deserialize(data)
+        raise RuntimeError(f"Failed to deserialize message! Got type: {msg_type}")
 
     @property
     def matching_response_type(self):
@@ -35,6 +52,37 @@ class Message(object):
     @property
     def type(self):
         raise NotImplementedError
+
+
+class GeneralSuccessMessage(Message):
+    def __init__(self, success_info: str):
+        self.success_info = success_info
+
+    @classmethod
+    def deserialize(cls, data):
+        return GeneralSuccessMessage(data[4:].decode('utf-8'))
+
+    def serialize(self):
+        return struct.pack("I", self.type()) + bytes(self.success_info, "utf-8")
+
+    @property
+    def type(self):
+        return GENERAL_SUCESS_MESSAGE_TYPE
+
+class GeneralErrorMessage(Message):
+    def __init__(self, error_info: str):
+        self.error_info = error_info
+
+    @classmethod
+    def deserialize(cls, data):
+        return GeneralErrorMessage(data[4:].decode('utf-8'))
+
+    def serialize(self):
+        return struct.pack("I", self.type()) + bytes(self.error_info, "utf-8")
+
+    @property
+    def type(self):
+        return GENERAL_ERROR_MESSAGE_TYPE
 
 
 class FileMessage(Message):
@@ -59,7 +107,7 @@ class FileMessage(Message):
 
     @property
     def type(self):
-        return 2
+        return FILE_MESSAGE_TYPE
 
 
 class FileListMessage(Message):
@@ -87,7 +135,7 @@ class FileListMessage(Message):
 
     @classmethod
     def type(cls):
-        return 1
+        return FILE_LIST_MESSAGE_TYPE
 
     @property
     def matching_response_type(self):
@@ -107,7 +155,7 @@ class SearchFileMessage(Message):
 
     @classmethod
     def type(cls):
-        return 0
+        return SEARCH_FILE_MESSAGE_TYPE
 
     @property
     def matching_response_type(self):
@@ -132,7 +180,7 @@ class ShareFileMessage(Message):
 
     @classmethod
     def type(cls):
-        return 3
+        return SHARE_FILE_MESSAGE_TYPE
 
 
 class ClientIdMessage(Message):
@@ -156,7 +204,7 @@ class ClientIdMessage(Message):
 
     @classmethod
     def type(cls):
-        return 4
+        return CLIENT_ID_MESSAGE_TYPE
 
 
 class FileDownloadRequest(Message):
@@ -184,7 +232,7 @@ class SharingInfoRequestMessage(FileDownloadRequest):
     """
     @classmethod
     def type(cls):
-        return 5
+        return SHARING_INFO_REQUEST_MESSAGE_TYPE
 
 
 class StartFileTransferMessage(FileDownloadRequest):
@@ -193,7 +241,7 @@ class StartFileTransferMessage(FileDownloadRequest):
     """
     @classmethod
     def type(cls):
-        return 7
+        return START_FILE_TRANSFER_MESSAGE_TYPE
 
 
 class SharingInfoResponseMessage(Message):
@@ -232,4 +280,4 @@ class SharingInfoResponseMessage(Message):
 
     @classmethod
     def type(cls):
-        return 6
+        return SHARING_INFO_RESPONSE_MESSAGE_TYPE
