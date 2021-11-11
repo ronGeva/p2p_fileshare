@@ -20,6 +20,9 @@ CLIENT_ID_MESSAGE_TYPE = 5
 SHARING_INFO_REQUEST_MESSAGE_TYPE = 6
 SHARING_INFO_RESPONSE_MESSAGE_TYPE = 7
 START_FILE_TRANSFER_MESSAGE_TYPE = 8
+CHUNK_DATA_RESPONSE_MESSAGE_TYPE = 9
+SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE = 10
+UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE = 11
 
 
 class MessageType(enum.Enum):
@@ -33,7 +36,8 @@ class Message(object):
                      CLIENT_ID_MESSAGE_TYPE: ClientIdMessage,
                      SHARING_INFO_REQUEST_MESSAGE_TYPE: SharingInfoRequestMessage,
                      SHARING_INFO_RESPONSE_MESSAGE_TYPE: SharingInfoResponseMessage,
-                     START_FILE_TRANSFER_MESSAGE_TYPE: StartFileTransferMessage}
+                     START_FILE_TRANSFER_MESSAGE_TYPE: StartFileTransferMessage
+                     CHUNK_DATA_RESPONSE_MESSAGE_TYPE: ChunkDataResponseMessage}
 
     def serialize(self):
         raise NotImplementedError
@@ -239,9 +243,28 @@ class StartFileTransferMessage(FileDownloadRequest):
     """
     This message is used by the client to let another client (the sharing client) know what file he'd like to download.
     """
+    def __init__(self, file_id: str, chunk_num: int):
+        self._file_id = file_id
+        self._chunk_num = chunk_num
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
+        return StartFileTransferMessage(file_id=file_id, chunk_num=chunk_num)
+
+    def serialize(self):
+        file_id_data = self._file_id.encode("utf-8")
+        chunk_num = pack("I", self._chunk_num)
+        return pack("I", self.type()) + file_id_data + chunk_num
+
     @classmethod
     def type(cls):
         return START_FILE_TRANSFER_MESSAGE_TYPE
+
+    @property
+    def matching_response_type(self):
+        return ChunkDownloadDataResponse
 
 
 class SharingInfoResponseMessage(Message):
@@ -281,3 +304,62 @@ class SharingInfoResponseMessage(Message):
     @classmethod
     def type(cls):
         return SHARING_INFO_RESPONSE_MESSAGE_TYPE
+
+
+class ChunkDataResponseMessage(FileDownloadRequest):
+    """
+    This message is used by the client to let another client (the sharing client) know what file he'd like to download.
+    """
+    def __init__(self, file_id: str, chunk_num: int, data: str):
+        self._file_id = file_id
+        self._chunk_num = chunk_num
+        self.data = data
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
+        chunk_data = data[4 + UNIQUE_ID_LENGTH:]
+        assert len(chunk_data) == DownloadedFileObject.CHUNK_SIZE
+        return ChunkDownloadDataResponse(file_id=file_id, chunk_num=chunk_num, data=chunk_data)
+
+    def serialize(self):
+        file_id_data = self._file_id.encode("utf-8")
+        chunk_num = pack("I", self._chunk_num)
+        assert len(chunk_data) == DownloadedFileObject.CHUNK_SIZE
+        return pack("I", self.type()) + file_id_data + chunk_num + self.data
+
+    @classmethod
+    def type(cls):
+        return CHUNK_DATA_RESPONSE_MESSAGE_TYPE
+
+
+class ChunkDownloadUpdateMessage(Message):
+    def __init__(self, file_id: str, chunk_num: int, origin_client_id: str):
+        self._file_id = file_id
+        self._chunk_num = chunk_num
+        self._origin_client_id = origin_client_id
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
+        origin_client_id = data[8 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH + UNIQUE_ID_LENGTH].decode("utf-8")
+        return SharingInfoRequestMessage(file_id=file_id, chunk_num=chunk_num, origin_client_id=origin_client_id)
+
+    def serialize(self):
+        file_id = self._file_id.encode("utf-8")
+        chunk_num = pack("I", self._chunk_num)
+        origin_client_id = self._origin_client_id.encode("utf-8")
+        return pack("I", self.type()) + file_id + chunk_num + origin_client_id
+
+
+class SuccessfuleChunkDownloadUpdateMessage(ChunkDownloadUpdateMessage):
+    @classmethod
+    def type(cls):
+        return SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE
+
+
+class UnsuccessfuleChunkDownloadUpdateMessage(ChunkDownloadUpdateMessage):
+    def type(cls):
+        return UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE
