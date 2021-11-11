@@ -6,6 +6,7 @@ import time
 import random
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.types import FileObject
 
 
 class FileDownloader(object):
@@ -17,7 +18,7 @@ class FileDownloader(object):
         self._chunk_downloaders = []
         self._thread = Thread(target=self.__start)
         ## TODO?: Add chunks md5s to file info and give it to file_object
-        self._file_object = DownloadedFileObject(self._local_path)
+        self._file_object = FileObject(self._local_path, self._file_info)
         #self._file_object.verify_all_chunks() ## ?? maybe do it in FileObject init
         self._thread.start()
 
@@ -29,7 +30,7 @@ class FileDownloader(object):
             #if chunk finished: TODO - Add the ability to kill blocking downloader
             if not chunk_downloader.is_alive():
                 # verify chunk with server
-                if self._file_object.verify_chunk(chunk_downloader.chunk):
+                if self._file_object.verify_chunk(chunk_downloader.chunk, None):
                     download_update_message = SuccessfuleChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
                 else:
                     download_update_message = SuccessfuleChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
@@ -47,6 +48,9 @@ class FileDownloader(object):
     def _run_chunk_downloaders(self):
         if len(self._chunk_downloaders) < MAX_CHUNK_DOWNLOADERS:
             empty_chunk = self._file_object.get_empty_chunk() #find needed chunk
+            if empty_chunk is None:
+                self._stop_event.set()
+                return
             client_addr = self._choose_origin(empty_chunk)  #ask server for new chunk download_server
             client_id = 'NOT_USED TODO: make use'
             # start ChunkDownloader
@@ -83,7 +87,7 @@ class FileDownloader(object):
 
 
 class ChunkDownloader(Thread):
-    def __init__(self, file_id: str, client_id: str, client_addr: tuple, file_object: DownloadedFileObject, chunk_num: int):
+    def __init__(self, file_id: str, client_id: str, client_addr: tuple, file_object: FileObject, chunk_num: int):
         super().__init__()
         self._file_id = file_id
         self._client_id = client_id
@@ -111,7 +115,7 @@ class ChunkDownloader(Thread):
         self._file_object.lock_chunk(self.chunk)
         data = self._get_chunk_data()
         self._file_object.write_chunk(self.chunk, data) # Make sure there is timeout on this in file object
-        self._file_object.verify_chunk(self.chunk)
+        self._file_object.verify_chunk(self.chunk, None)
         self._stop()
 
     @property
