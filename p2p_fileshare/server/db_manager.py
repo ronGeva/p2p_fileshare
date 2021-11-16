@@ -93,3 +93,17 @@ class DBManager(AbstractDBManager):
         """
         cursor.execute(f"select origin from shares where file = '{file_unique_id}'")
         return [line[0] for line in cursor.fetchall()]
+
+    @db_func
+    def get_shared_file_info(self, cursor: sqlite3.Cursor, file_id: str) -> list[SharedFile]:
+        """
+        Searches for a single file via its filename.
+        Every file containing the requested filename as a substring will be retrieved.
+        :return: A list of the files (each represented by a SharedFile object).
+        """
+        cursor.execute(f"SELECT * FROM files where unique_id like '%{file_id}%';")
+        result = cursor.fetchall()
+        if len(result) == 1:
+            result = result[0]
+            return SharedFile(result[3], result[0], result[1], result[2], [])
+        return None

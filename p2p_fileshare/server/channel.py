@@ -71,14 +71,16 @@ class ClientChannel(object):
                 self._db.add_new_client(unique_id)
                 self._client_id = unique_id
         if isinstance(msg, SharingInfoRequestMessage):
+            shared_file = self._db.get_shared_file_info(msg.file_unique_id)
             sharing_clients = self._db.find_sharing_clients(msg.file_unique_id)
             current_clients = self._get_all_clients_func()
 
             # filter out current clients which do not share the file
-            connected_sharing_clients = [SharingClientInfo(current_client[1], [2]) for current_client in current_clients
+            connected_sharing_clients = [SharingClientInfo((current_client[1], current_client[2])) for current_client in current_clients
                                               if current_client[0] in sharing_clients]
-            shared_file_info = SharedFileInfo(msg.file_unique_id, connected_sharing_clients)
-            return SharingInfoResponseMessage(shared_file_info)
+            shared_file.origins = connected_sharing_clients
+            #shared_file_info = SharedFileInfo(msg.file_unique_id, connected_sharing_clients)
+            return SharingInfoResponseMessage(shared_file)
 
         return None
 

@@ -4,13 +4,16 @@ This module contains the implementation of the local sharing/downloading logic.
 
 import time
 import random
+from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
-from p2p_fileshare.framework.types import FileObject
+from p2p_fileshare.framework.types import FileObject, SharedFile
 
 
 class FileDownloader(object):
-    def __init__(self, file_info: SharedFileInfo, server_channel: Channel, local_path: str):
+    MAX_CHUNK_DOWNLOADERS = 5
+
+    def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
         self._file_info = file_info
         self._server_channel = server_channel
         self._local_path = local_path
@@ -31,32 +34,36 @@ class FileDownloader(object):
             if not chunk_downloader.is_alive():
                 # verify chunk with server
                 if self._file_object.verify_chunk(chunk_downloader.chunk, None):
-                    download_update_message = SuccessfuleChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
+                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
                 else:
-                    download_update_message = SuccessfuleChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
+                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
                 self._server_channel.send_message(download_update_message)
                 # remove from downloaders
                 del self._chunk_downloaders[self._chunk_downloaders.index(chunk_downloader)]
 
     def _choose_origin(self, origin_chunk):
         # TODO: Make better logic, and maybe ask the server for the best origin
-        origin = random.choice(self._file_info.sharing_clients)
+        origin = random.choice(self._file_info.origins)
         # TODO: Add origin ID to SharedFileInfo so we can update the server on the successful download
         #return origin.id, (origin.ip, origin.port)
         return (origin.ip, origin.port)
 
     def _run_chunk_downloaders(self):
-        if len(self._chunk_downloaders) < MAX_CHUNK_DOWNLOADERS:
+        if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:
             empty_chunk = self._file_object.get_empty_chunk() #find needed chunk
             if empty_chunk is None:
                 self._stop_event.set()
                 return
             client_addr = self._choose_origin(empty_chunk)  #ask server for new chunk download_server
             client_id = 'NOT_USED TODO: make use'
+            print(f"{client_addr} was chosen for chunk {empty_chunk} download", flush=True)
             # start ChunkDownloader
             chunk_downloader = ChunkDownloader(self._file_info.unique_id, client_id, client_addr, self._file_object, empty_chunk)
             self._chunk_downloaders.append(chunk_downloader)
             chunk_downloader.start()
+
+    def is_done(self):
+        return self._stop_event.is_set()
 
     def __start(self):
         """
@@ -64,7 +71,7 @@ class FileDownloader(object):
         All logic within this function must be thread safe.
         """
         self._initialize_file_download()
-        while not self._stop_event.is_set():
+        while not self.is_done():
             ## check threads
             self._check_chunk_downloaders()
             self._run_chunk_downloaders()
@@ -93,7 +100,7 @@ class ChunkDownloader(Thread):
         self._client_id = client_id
         self._client_addr = client_addr
         self._file_object = file_object
-        self._chunk =  empty_chunk
+        self._chunk =  chunk_num
         self._stop_event = Event()
         self._channel = None
 
@@ -126,10 +133,11 @@ class ChunkDownloader(Thread):
     def client_id(self):
         return self._client_id
 
-    def stop(self)
+    def stop(self):
         self._stop_event.set()
         time.sleep(1)
         self._stop()
 
-    def _stop(self)
+    def _stop(self):
+        print(type(self._channel), flush=True)
         self._channel.close()

@@ -2,7 +2,7 @@
 A module containing different types used by the application
 """
 # TODO: consider using NamedTuple for this
-
+from filelock import FileLock
 
 class FileOrigin(object):
     def __init__(self, address: (str, int)):
@@ -17,11 +17,6 @@ class SharedFile(object):
         self.modification_time = modification_time
         self.size = size
         self.origins = origins
-        self.downloaded_bytes = 0
-
-    @property
-    def download_state(self):
-        return self.downloaded_bytes / self.size
 
 
 class SharingClientInfo(object):
@@ -37,31 +32,38 @@ class SharedFileInfo(object):
 
 class FileObject(object):
     CHUNK_SIZE = 1024*1024*3
-    def __init__(self, file_path: str, files_data={}: dict, new_file=False: bool):
+    def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
         self._file_path = file_path
-        self._files_data = _files_data
-        self._file_lock = Lock()
+        self._files_data = {}
+        self._file_lock = FileLock(self._file_path+'.lock')
         if new_file:
-            self._files_data = {}
             self._get_file_data()
+        else:
+            self._get_data_from_shared_file(files_data)
         self._chunk_mum = None
         self._chunks = {}
 
-    %property
+    @property
     def chunk_mum(self):
         if self._chunk_mum is None:
-            self._chunk_mum = int(self._files_data['size'] / FILE_CHUNK_SIZE)
-            if self._files_data['size'] % FILE_CHUNK_SIZE != 0:
+            self._chunk_mum = int(self._files_data['size'] / self.CHUNK_SIZE)
+            if self._files_data['size'] % self.CHUNK_SIZE != 0:
                 self._chunk_mum += 1
         return self._chunk_mum
 
     def _get_file_data(self):
-        unique_id, name, modification_time, size, origins
+        #unique_id, name, modification_time, size, origins
         file_stats = os.stat(file_path)
         self._files_data['name'] = os.path.basename(file_path)
         self._files_data['modification_time'] = int(file_stats.st_mtime)
         self._files_data['size'] = file_stats.st_size
-        self._files_data['hash'] = get_file_hash(file_path)
+        self._files_data['unique_id'] = get_file_hash(file_path)
+
+    def _get_data_from_shared_file(self, files_data: SharedFile):
+        self._files_data['name'] = files_data.name
+        self._files_data['modification_time'] = files_data.modification_time
+        self._files_data['size'] = files_data.size
+        self._files_data['unique_id'] = files_data.unique_id
 
     def update_db(self):
         pass
@@ -104,8 +106,8 @@ class FileObject(object):
         chunk_data = None
         try:
             with open(self._file_path, 'rb+') as f:
-                f.seek(FILE_CHUNK_SIZE*chunk)
-                chunk_data = f.read(FILE_CHUNK_SIZE)
+                f.seek(self.CHUNK_SIZE*chunk)
+                chunk_data = f.read(self.CHUNK_SIZE)
         finally:
             self._file_lock.release()
             assert chunk_data is not None
@@ -113,18 +115,18 @@ class FileObject(object):
 
     def write_chunk(self, chunk: int, chunk_data: str):
         assert chunk < self.chunk_mum
-        assert len(chunk_data) <= FILE_CHUNK_SIZE
+        assert len(chunk_data) <= self.CHUNK_SIZE
         self._file_lock.acquire()
         try:
             with open(self._file_path, 'rb+') as f:
-                f.seek(FILE_CHUNK_SIZE*chunk)
+                f.seek(self.CHUNK_SIZE*chunk)
                 f.write(chunk_data)
         finally:
             self._chunks[chunk] = True
             self._file_lock.release()
 
     def get_shared_file(self):
-        return SharedFile(self._files_data['hash'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],
+        return SharedFile(self._files_data['unique_id'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],
                                  []) 
 
     def get_empty_chunk(self):

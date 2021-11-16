@@ -19,9 +19,9 @@ MAX_PENDING_CLIENTS = 5  # TODO: make this configurable
 
 
 class Server(ABC):
-    def __init__(self):
+    def __init__(self, port=0):
         self._socket = socket.socket()
-        self._socket.bind(('0.0.0.0', 0))
+        self._socket.bind(('0.0.0.0', port))
         self._socket.listen(MAX_PENDING_CLIENTS)
         logger.debug(f"Starting server at address: {self._socket.getsockname()}")
 

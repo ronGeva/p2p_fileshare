@@ -1,4 +1,5 @@
 import sys
+import traceback
 from socket import socket
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import ClientIdMessage
@@ -12,8 +13,11 @@ ID_RETRIEVAL_TIMEOUT = 60
 COMMAND_PROMPT = """
 Enter a command, one of the following:
 1. search <file name or substring of it>
-2. download <file ID> (id retrieved from search command)
+2. download <file ID> <Local path> (ID retrieved from search command)
 3. share <local file path>
+4. list-downloads
+5. remove-download <Downloader ID> (ID retrieved from list-downloads command)
+0. exit
 """
 
 
@@ -38,6 +42,14 @@ def perform_command(user_input: str, files_manager: FilesManager):
         file_path = user_input.split(" ")[1]
         files_manager.share_file(file_path)
         # TODO: allow this call to raise exceptions, if they're not fatal catch them here and print them nicely
+    elif user_input.startswith("list-downloads"):
+        files_manager.list_downloads()
+    elif user_input.startswith("remove-download "):
+        downloader_id = user_input.split(" ")[1]
+        files_manager.remove_download(downloader_id)
+    elif user_input.startswith("exit"):
+        return True
+    return False
 
 
 def get_client_id() -> str:
@@ -74,8 +86,14 @@ def main(args):
     communication_channel = initialize_communication_channel(args)
     resolve_id(communication_channel)
     files_manager = FilesManager(communication_channel)
-    while True:
-        perform_command(input(COMMAND_PROMPT), files_manager)
+    should_exit = False
+    while not should_exit:
+        try:
+            should_exit = perform_command(input(COMMAND_PROMPT), files_manager)
+        except Exception as e:
+            print('Couldn\'t perform command :(')
+            print(traceback.format_exc())
+
 
 
 if __name__ == '__main__':

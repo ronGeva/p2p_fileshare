@@ -8,7 +8,7 @@ def main(args):
     # TODO: parse args
     logging.basicConfig()
     logging.getLogger().setLevel(logging.DEBUG)  # TODO: make this configurable
-    server = MetadataServer()
+    server = MetadataServer(port=1337)
     while True:
         server.main_loop()
 

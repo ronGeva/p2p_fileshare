@@ -37,8 +37,8 @@ class FileShareServer(Server):
     New clients that wish to download files we're currently sharing will connect to this server's socket, and in return
     we will start a new transfer channel for them which will pass chunks of the file according to their requests.
     """
-    def __init__(self, local_db: DBManager):
-        super().__init__()
+    def __init__(self, local_db: DBManager, port=0):
+        super().__init__(port)
         self._active_transfers = []
         self._db = local_db
 

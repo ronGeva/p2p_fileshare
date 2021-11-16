@@ -10,6 +10,7 @@ from db_manager import DBManager
 from threading import Thread
 import os
 import hashlib
+from file_transfer import FileDownloader
 
 
 class FilesManager(object):
@@ -19,11 +20,12 @@ class FilesManager(object):
         self._file_share_server = None
         self._file_share_thread = None
         self.__initialize_file_share_server()
+        self.downloaders = {}
 
     def __start_file_share(self):
         # TODO: pass the sharing port to the server. Right now after stopping the app and starting it back on again
         # the server won't know our sharing port until we share a new file
-        self._file_share_server = FileShareServer(self._local_db)
+        self._file_share_server = FileShareServer(local_db=self._local_db)
         self._file_share_thread = Thread(target=self._file_share_server.main_loop)
         self._file_share_thread.start()
 
@@ -72,10 +74,32 @@ class FilesManager(object):
         shared_file_message = ShareFileMessage(shared_file, self._file_share_server.sharing_port)
         self._communication_channel.send_message(shared_file_message)
 
-
     def download_file(self, unique_id: str, local_path: str):
-        sharing_info_request = SharingInfoRequestMessage(unique_id)
-        self._communication_channel.send_message(sharing_info_request)
-        shared_file_info = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
-        # TODO: we now have all the information needed to initialize the file download. Implement the file download
-        pass
+        if unique_id+local_path in self.downloaders:
+            print('Given file was already downloaded to given location, please list and remove it first')
+        else:
+            print("Sending file info request to server")
+            sharing_info_request = SharingInfoRequestMessage(unique_id)
+            self._communication_channel.send_message(sharing_info_request)
+            shared_file = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
+            print("Got file info")
+            print(f"unique_id: {shared_file.unique_id}, sharing_clients: {shared_file.origins}")
+            for sc in shared_file.origins:
+                print(f"{sc.ip}:{sc.port}")
+            fd = FileDownloader(shared_file, self._communication_channel, local_path)
+            self.downloaders[unique_id+'-'+local_path].append(fd)
+            print('FileDownloader started!')
+
+    def list_downloads(self):
+        for fd_id in self.downloaders:
+            if self.downloaders[fd_id].is_done():
+                print(f"{fd_id}: Done")
+            else:
+                print(f"{fd_id}: In progress")
+
+    def remove_download(self, downloader_id: str):
+        if downloader_id not in self.downloaders:
+            print('Unknown downloader')
+        else:
+            fd = self.downloaders.pop(downloader_id)
+            fd.stop()

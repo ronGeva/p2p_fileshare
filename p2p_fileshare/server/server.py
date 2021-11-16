@@ -16,8 +16,8 @@ MAX_PENDING_CLIENTS = 5  # TODO: make this configurable
 
 
 class MetadataServer(Server):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, port=0):
+        super().__init__(port)
         self._communication_channels = []
         self._db = DBManager()
 

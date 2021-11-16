@@ -1,1 +1,1 @@
-import framework
+from . import framework
