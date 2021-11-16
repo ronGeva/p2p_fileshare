@@ -4,7 +4,8 @@ p2p fashion and start a file transfer.
 """
 from p2p_fileshare.framework.server import Server
 from p2p_fileshare.framework.channel import Channel
-from p2p_fileshare.framework.messages import StartFileTransferMessage
+from p2p_fileshare.framework.types import FileObject
+from p2p_fileshare.framework.messages import StartFileTransferMessage, ChunkDataResponseMessage
 from db_manager import DBManager
 from logging import getLogger
 from threading import Thread
@@ -17,11 +18,14 @@ logger = getLogger(__file__)
 # NOTE: if we want to be able to query ongoing file transfers, this should probably be refactored into a class.
 def transfer_file_to_client(downloader_socket: socket.socket, db_manager: DBManager):
     channel = Channel(downloader_socket)
-    unique_id = channel.wait_for_message(StartFileTransferMessage).unique_id
-    file_path = db_manager.get_shared_file_path(unique_id)
+    transfer_request = channel.wait_for_message(StartFileTransferMessage)
+    file_path = db_manager.get_shared_file_path(transfer_request._file_id)
     if file_path is None:
         logger.warning(f"A client has requested a file which this client does not share. ID: {unique_id}")
         return  # maybe raise?
+    file_object = FileObject(file_path)
+    chunk_data = file_object.read_chunk(transfer_request._chunk_num)
+    channel.send_message(ChunkDataResponseMessage(transfer_request._file_id, transfer_request._chunk_num, chunk_data))
     # TODO: we now have the file path and the channel to the client. Wait for the client to request chunks of the file
     # and transfer them to it via channel.send_message(...)
 

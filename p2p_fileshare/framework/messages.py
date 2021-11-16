@@ -257,7 +257,7 @@ class StartFileTransferMessage(FileDownloadRequest):
 
     @property
     def matching_response_type(self):
-        return ChunkDownloadDataResponse
+        return ChunkDataResponseMessage
 
 
 class SharingInfoRequestMessage(FileDownloadRequest):
@@ -337,7 +337,7 @@ class ChunkDataResponseMessage(FileDownloadRequest):
         chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
         chunk_data = data[4 + UNIQUE_ID_LENGTH:]
         assert len(chunk_data) == FileObject.CHUNK_SIZE
-        return ChunkDownloadDataResponse(file_id=file_id, chunk_num=chunk_num, data=chunk_data)
+        return ChunkDataResponseMessage(file_id=file_id, chunk_num=chunk_num, data=chunk_data)
 
     def serialize(self):
         file_id_data = self._file_id.encode("utf-8")

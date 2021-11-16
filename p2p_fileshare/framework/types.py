@@ -38,7 +38,7 @@ class FileObject(object):
         self._file_lock = FileLock(self._file_path+'.lock')
         if new_file:
             self._get_file_data()
-        else:
+        elif files_data is not None:
             self._get_data_from_shared_file(files_data)
         self._chunk_mum = None
         self._chunks = {}
