@@ -87,7 +87,7 @@ class FilesManager(object):
             for sc in shared_file.origins:
                 print(f"{sc.ip}:{sc.port}")
             fd = FileDownloader(shared_file, self._communication_channel, local_path)
-            self.downloaders[unique_id+'-'+local_path].append(fd)
+            self.downloaders[unique_id+'-'+local_path]=fd
             print('FileDownloader started!')
 
     def list_downloads(self):

@@ -76,7 +76,7 @@ class ClientChannel(object):
             current_clients = self._get_all_clients_func()
 
             # filter out current clients which do not share the file
-            connected_sharing_clients = [SharingClientInfo((current_client[1], current_client[2])) for current_client in current_clients
+            connected_sharing_clients = [SharingClientInfo(current_client[0], (current_client[1], current_client[2])) for current_client in current_clients
                                               if current_client[0] in sharing_clients]
             shared_file.origins = connected_sharing_clients
             #shared_file_info = SharedFileInfo(msg.file_unique_id, connected_sharing_clients)

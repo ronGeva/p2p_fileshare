@@ -20,7 +20,8 @@ class SharedFile(object):
 
 
 class SharingClientInfo(object):
-    def __init__(self, sockname: tuple[str, int]):
+    def __init__(self, unique_id: str, sockname: tuple[str, int]):
+        self.unique_id = unique_id
         self.ip, self.port = sockname
 
 
@@ -118,7 +119,7 @@ class FileObject(object):
         assert len(chunk_data) <= self.CHUNK_SIZE
         self._file_lock.acquire()
         try:
-            with open(self._file_path, 'rb+') as f:
+            with open(self._file_path, 'wb+') as f:
                 f.seek(self.CHUNK_SIZE*chunk)
                 f.write(chunk_data)
         finally:
