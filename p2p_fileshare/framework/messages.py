@@ -285,7 +285,6 @@ class SharingInfoResponseMessage(Message):
 
     @classmethod
     def deserialize(cls, data: bytes):
-        print(f'Got message from: {data}', flush=True)
         unique_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
         name_len = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
         name = data[8 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH + name_len].decode("utf-8")
@@ -299,9 +298,6 @@ class SharingInfoResponseMessage(Message):
             client_id = data[index: index + UNIQUE_ID_LENGTH].decode("utf-8")
             ip = inet_ntoa(data[index + UNIQUE_ID_LENGTH: index + UNIQUE_ID_LENGTH + 4])
             port = unpack("H", data[index + UNIQUE_ID_LENGTH + 4: index + UNIQUE_ID_LENGTH + 6])[0]
-            print(f'Share client {client_id}', flush=True)
-            print(f"\t{ip}:{port}", flush=True)
-            print(f"\t{data[index: index + 4]}:{data[index + 4: index + 6]}", flush=True)
             if port == 0:
                 port = None
             sharing_clients.append(SharingClientInfo(client_id, (ip, port)))
@@ -316,14 +312,11 @@ class SharingInfoResponseMessage(Message):
         amount_of_sharing_clients_data = pack("I", len(self.shared_file.origins))
         sharing_clients_data = bytes()
         for sharing_client in self.shared_file.origins:
-            print(f"Sending share client {sharing_client.unique_id}")
-            print(f"{sharing_client.ip}:{sharing_client.port}", flush=True)
             sharing_clients_data += sharing_client.unique_id.encode("utf-8")
             sharing_clients_data += inet_aton(sharing_client.ip)
             port = sharing_client.port if sharing_client.port is not None else 0
             sharing_clients_data += pack("H", port)
         data = pack("I", self.type()) + unique_id_data + name_len + self.shared_file.name.encode("utf-8") + modification_time + size + amount_of_sharing_clients_data + sharing_clients_data
-        print(f'Sending message: {data}', flush=True)
         return data
 
     @classmethod

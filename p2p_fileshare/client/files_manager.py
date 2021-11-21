@@ -1,6 +1,8 @@
 """
 A module governing file access.
 """
+import logging
+
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
     SharingInfoRequestMessage, SharingInfoResponseMessage
@@ -11,6 +13,9 @@ from threading import Thread
 import os
 import hashlib
 from file_transfer import FileDownloader
+
+
+logger = logging.getLogger(__name__)
 
 
 class FilesManager(object):
@@ -76,30 +81,28 @@ class FilesManager(object):
 
     def download_file(self, unique_id: str, local_path: str):
         if unique_id+local_path in self.downloaders:
-            print('Given file was already downloaded to given location, please list and remove it first')
+            logger.warning('Given file was already downloaded to given location, please list and remove it first')
         else:
-            print("Sending file info request to server")
+            logger.debug("Sending file info request to server")
             sharing_info_request = SharingInfoRequestMessage(unique_id)
             self._communication_channel.send_message(sharing_info_request)
             shared_file = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
-            print("Got file info")
-            print(f"unique_id: {shared_file.unique_id}, sharing_clients: {shared_file.origins}")
             for sc in shared_file.origins:
-                print(f"{sc.ip}:{sc.port}")
+                logger.debug(f"Origin: {sc.ip}:{sc.port}")
             fd = FileDownloader(shared_file, self._communication_channel, local_path)
             self.downloaders[unique_id+'-'+local_path]=fd
-            print('FileDownloader started!')
+            logger.debug('FileDownloader started!')
 
     def list_downloads(self):
         for fd_id in self.downloaders:
             if self.downloaders[fd_id].is_done():
-                print(f"{fd_id}: Done")
+                logger.debug(f"{fd_id}: Done")
             else:
-                print(f"{fd_id}: In progress")
+                logger.debug(f"{fd_id}: In progress")
 
     def remove_download(self, downloader_id: str):
         if downloader_id not in self.downloaders:
-            print('Unknown downloader')
+            logger.warning('Unknown downloader')
         else:
             fd = self.downloaders.pop(downloader_id)
             fd.stop()

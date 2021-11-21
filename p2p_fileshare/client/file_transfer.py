@@ -32,9 +32,7 @@ class FileDownloader(object):
     def _check_chunk_downloaders(self):
         for chunk_downloader in self._chunk_downloaders:
             #if chunk finished: TODO - Add the ability to kill blocking downloader
-            print('Checking downloaders', flush=True)
             if not chunk_downloader.is_alive():
-                print('Removing downloader', flush=True)
                 # verify chunk with server
                 if self._file_object.verify_chunk(chunk_downloader.chunk, None):
                     download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
@@ -63,11 +61,9 @@ class FileDownloader(object):
                 return
             client_addr = self._choose_origin(empty_chunk)  #ask server for new chunk download_server
             client_id = 'NOT_USED TODO: make use'
-            print(f"{client_addr} was chosen for chunk {empty_chunk} download", flush=True)
             # start ChunkDownloader
             chunk_downloader = ChunkDownloader(self._file_info.unique_id, client_id, client_addr, self._file_object, empty_chunk)
             self._chunk_downloaders.append(chunk_downloader)
-            print('starting new downloader', flush=True)
             chunk_downloader.start()
 
     def is_done(self):
@@ -147,6 +143,5 @@ class ChunkDownloader(Thread):
         self._stop()
 
     def _stop(self):
-        print(type(self._channel), flush=True)
         if self._channel is not None:
             self._channel.close()

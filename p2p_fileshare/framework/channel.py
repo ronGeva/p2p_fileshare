@@ -1,14 +1,21 @@
 """
 This module is a wrapper for reliable communication with an endpoint.
 """
+import logging
+
 from p2p_fileshare.framework.messages import Message
 from socket import socket
 from struct import pack, unpack
 from threading import Event
 import select
 
+
+logger = logging.getLogger(__name__)
+
+
 class SocketClosedException(Exception):
     pass
+
 
 class Channel(object):
     def __init__(self, endpoint_socket: socket, stop_event: Event =None):
@@ -34,7 +41,7 @@ class Channel(object):
             if rlist:
                 new_data = self._socket.recv(data_len-len(received_data))
                 if len(new_data) == 0:
-                    print('Got 0 bytes from socket, socket is closed')
+                    logger.debug('Got 0 bytes from socket, socket is closed')
                     self._is_socket_closed = True
                     raise SocketClosedException()
                 received_data += new_data
