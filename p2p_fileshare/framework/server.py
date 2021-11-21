@@ -51,5 +51,6 @@ class Server(ABC):
         # TODO: this method performs a busy wait which is very inefficient. This was done since Windows does not support
         # using "select" on non-socket file descriptors, which made it hard for us to properly realize when a client
         # channel has crashed without iterating through them all
-        self._check_for_new_clients()
-        self._remove_old_clients()
+        while True:
+            self._check_for_new_clients()
+            self._remove_old_clients()

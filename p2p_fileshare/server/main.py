@@ -9,8 +9,7 @@ def main(args):
     logging.basicConfig()
     logging.getLogger().setLevel(logging.DEBUG)  # TODO: make this configurable
     server = MetadataServer(port=1337)
-    while True:
-        server.main_loop()
+    server.main_loop()
 
 
 if __name__ == '__main__':
