@@ -15,11 +15,11 @@ class DBManager(AbstractDBManager):
 
     @db_func
     def get_shared_file_path(self, cursor: sqlite3.Cursor, unique_id: str):
-        cursor.execute(f"select path from files where unique_id='{unique_id}'")
+        cursor.execute(f"select file_path from files where unique_id='{unique_id}'")
         result = cursor.fetchall()
         if len(result) == 0:
             return None
-        return result[0]
+        return result[0][0]
 
     @db_func
     def is_there_any_shared_file(self, cursor: sqlite3.Cursor):
