@@ -115,7 +115,6 @@ class ChunkDownloader(Thread):
     def _init_downloader(self):
         s = socket()
         s.connect(self._client_addr)
-        print(f'Connected to {self._client_addr}', flush=True)
         self._channel = Channel(s, self._stop_event)
 
     def _get_chunk_data(self):
@@ -124,17 +123,13 @@ class ChunkDownloader(Thread):
         return chunk_download_response.data
 
     def run(self):
-        print('Starting thread', flush=True)
         # send get_chunk_message
         # Non blocking recv
             #???? how to make sure get chunk doesn't block so you can stop on signal set
         self._init_downloader()
         self._file_object.lock_chunk(self.chunk)
-        print(f'Getting chunk', flush=True)
         data = self._get_chunk_data()
-        print(f'Got chunk', flush=True)
         self._file_object.write_chunk(self.chunk, data) # Make sure there is timeout on this in file object
-        print(f'Wrote chunk', flush=True)
         self._file_object.verify_chunk(self.chunk, None)
         self._stop()
 
