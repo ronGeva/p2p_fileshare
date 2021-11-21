@@ -23,8 +23,9 @@ def transfer_file_to_client(downloader_socket: socket.socket, db_manager: DBMana
     if file_path is None:
         logger.warning(f"A client has requested a file which this client does not share. ID: {unique_id}")
         return  # maybe raise?
-    file_object = FileObject(file_path)
+    file_object = FileObject(file_path, new_file=True)  # TODO: ask Persia why we need new_file kwarg
     chunk_data = file_object.read_chunk(transfer_request._chunk_num)
+    logger.debug("Sending a ChunkDataResponseMessage to another client")
     channel.send_message(ChunkDataResponseMessage(transfer_request._file_id, transfer_request._chunk_num, chunk_data))
     # TODO: we now have the file path and the channel to the client. Wait for the client to request chunks of the file
     # and transfer them to it via channel.send_message(...)

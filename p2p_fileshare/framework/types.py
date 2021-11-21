@@ -3,6 +3,9 @@ A module containing different types used by the application
 """
 # TODO: consider using NamedTuple for this
 from filelock import FileLock
+import os
+import hashlib
+
 
 class FileOrigin(object):
     def __init__(self, address: (str, int)):
@@ -36,29 +39,29 @@ class FileObject(object):
     def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
         self._file_path = file_path
         self._files_data = {}
+        self._chunk_num = None
+        self._chunks = {}
         self._file_lock = FileLock(self._file_path+'.lock')
         if new_file:
             self._get_file_data()
         elif files_data is not None:
             self._get_data_from_shared_file(files_data)
-        self._chunk_mum = None
-        self._chunks = {}
 
     @property
     def chunk_mum(self):
-        if self._chunk_mum is None:
-            self._chunk_mum = int(self._files_data['size'] / self.CHUNK_SIZE)
+        if self._chunk_num is None:
+            self._chunk_num = int(self._files_data['size'] / self.CHUNK_SIZE)
             if self._files_data['size'] % self.CHUNK_SIZE != 0:
-                self._chunk_mum += 1
-        return self._chunk_mum
+                self._chunk_num += 1
+        return self._chunk_num
 
     def _get_file_data(self):
         #unique_id, name, modification_time, size, origins
-        file_stats = os.stat(file_path)
-        self._files_data['name'] = os.path.basename(file_path)
+        file_stats = os.stat(self._file_path)
+        self._files_data['name'] = os.path.basename(self._file_path)
         self._files_data['modification_time'] = int(file_stats.st_mtime)
         self._files_data['size'] = file_stats.st_size
-        self._files_data['unique_id'] = get_file_hash(file_path)
+        self._files_data['unique_id'] = self.get_file_hash()
 
     def _get_data_from_shared_file(self, files_data: SharedFile):
         self._files_data['name'] = files_data.name
