@@ -8,7 +8,8 @@ from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject, SharedFile
-from p2p_fileshare.framework.messages import StartFileTransferMessage
+from p2p_fileshare.framework.messages import StartFileTransferMessage, SuccessfulChunkDownloadUpdateMessage, \
+    UnsuccessfulChunkDownloadUpdateMessage
 
 
 class FileDownloader(object):
@@ -30,17 +31,20 @@ class FileDownloader(object):
         pass
 
     def _check_chunk_downloaders(self):
+        downloaders_to_remove = []
         for chunk_downloader in self._chunk_downloaders:
             #if chunk finished: TODO - Add the ability to kill blocking downloader
-            if not chunk_downloader.is_alive():
+            if chunk_downloader.finished:
                 # verify chunk with server
                 if self._file_object.verify_chunk(chunk_downloader.chunk, None):
-                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
+                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_info.unique_id, chunk_downloader.chunk, chunk_downloader.client_id)
                 else:
-                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_id, chunk_downloader.chunk, chunk_downloader.client_id)
+                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_info.unique_id, chunk_downloader.chunk, chunk_downloader.client_id)
                 self._server_channel.send_message(download_update_message)
-                # remove from downloaders
-                del self._chunk_downloaders[self._chunk_downloaders.index(chunk_downloader)]
+                downloaders_to_remove.append(chunk_downloader)
+
+        for downloader_to_remove in downloaders_to_remove:
+            self._chunk_downloaders.remove(downloader_to_remove)
 
     def _choose_origin(self, origin_chunk):
         got_origin = False
@@ -76,11 +80,10 @@ class FileDownloader(object):
         """
         self._initialize_file_download()
         while not self.is_done():
-            ## check threads
+            # check threads
             self._check_chunk_downloaders()
             self._run_chunk_downloaders()
             time.sleep(1)
-
 
     def stop(self):
         self._stop_event.set()
@@ -107,6 +110,7 @@ class ChunkDownloader(Thread):
         self._chunk =  chunk_num
         self._stop_event = Event()
         self._channel = None
+        self.finished = False
 
     def _init_downloader(self):
         s = socket()
@@ -145,3 +149,4 @@ class ChunkDownloader(Thread):
     def _stop(self):
         if self._channel is not None:
             self._channel.close()
+        self.finished = True

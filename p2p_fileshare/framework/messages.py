@@ -361,7 +361,7 @@ class ChunkDownloadUpdateMessage(Message):
         file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
         chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
         origin_client_id = data[8 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH + UNIQUE_ID_LENGTH].decode("utf-8")
-        return SharingInfoRequestMessage(file_id=file_id, chunk_num=chunk_num, origin_client_id=origin_client_id)
+        return cls(file_id=file_id, chunk_num=chunk_num, origin_client_id=origin_client_id)
 
     def serialize(self):
         file_id = self._file_id.encode("utf-8")

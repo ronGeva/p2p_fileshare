@@ -35,7 +35,7 @@ class SharedFileInfo(object):
 
 
 class FileObject(object):
-    CHUNK_SIZE = 1024*1024*3
+    CHUNK_SIZE = 1024 * 64  # 64 KB
     def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
         self._file_path = file_path
         self._files_data = {}
@@ -122,7 +122,7 @@ class FileObject(object):
         assert len(chunk_data) <= self.CHUNK_SIZE
         self._file_lock.acquire()
         try:
-            with open(self._file_path, 'wb+') as f:
+            with open(self._file_path, 'ab') as f:
                 f.seek(self.CHUNK_SIZE*chunk)
                 f.write(chunk_data)
         finally:

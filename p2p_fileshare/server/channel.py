@@ -95,7 +95,7 @@ class ClientChannel(object):
         Returns a 3 tuple containing the client id, its current IP address, and the port in which other clients can
         contact it in order to initialize file downloads.
         """
-        return self._client_id, self._channel.getsockname()[0], self._client_share_port
+        return self._client_id, self._channel.getpeername()[0], self._client_share_port
 
     @property
     def is_active(self):

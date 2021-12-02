@@ -85,8 +85,8 @@ class Channel(object):
     def fileno(self):
         return self._socket.fileno()
 
-    def getsockname(self):
-        return self._socket.getsockname()
+    def getpeername(self):
+        return self._socket.getpeername()
 
     def close(self):
         self._stop_event.set()
