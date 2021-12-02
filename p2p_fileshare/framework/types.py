@@ -104,7 +104,7 @@ class FileObject(object):
         return True
         assert self.get_chunk_md5(chunk) == md5
 
-    def read_chunk(self, chunk: int):
+    def read_chunk(self, chunk: int) -> bytes:
         assert chunk < self.chunk_mum
         self._file_lock.acquire()
         chunk_data = None

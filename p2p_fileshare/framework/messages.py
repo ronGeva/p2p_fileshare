@@ -1,12 +1,10 @@
 """
 A module containing Client - Server messages.
-TODO: Change all magic types into some form of an enum for better readability
 """
-import enum
 import struct
 from struct import pack, unpack
 from socket import inet_aton, inet_ntoa
-from p2p_fileshare.framework.types import SharedFile, SharingClientInfo, SharedFileInfo
+from p2p_fileshare.framework.types import SharedFile, SharingClientInfo
 
 UNIQUE_ID_LENGTH = 32
 
@@ -39,6 +37,7 @@ def get_message_type_object(message_type):
                      SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE: SuccessfulChunkDownloadUpdateMessage,
                      UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE: UnsuccessfulChunkDownloadUpdateMessage}
     return message_types.get(message_type, None)
+
 
 class Message(object):
     def serialize(self):
@@ -75,6 +74,7 @@ class GeneralSuccessMessage(Message):
     @classmethod
     def type(self):
         return GENERAL_SUCESS_MESSAGE_TYPE
+
 
 class GeneralErrorMessage(Message):
     def __init__(self, error_info: str):
@@ -328,7 +328,7 @@ class ChunkDataResponseMessage(FileDownloadRequest):
     """
     This message is used by the client to let another client (the sharing client) know what file he'd like to download.
     """
-    def __init__(self, file_id: str, chunk_num: int, data: str):
+    def __init__(self, file_id: str, chunk_num: int, data: bytes):
         self._file_id = file_id
         self._chunk_num = chunk_num
         self.data = data
@@ -338,13 +338,11 @@ class ChunkDataResponseMessage(FileDownloadRequest):
         file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
         chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
         chunk_data = data[8 + UNIQUE_ID_LENGTH:]
-        #assert len(chunk_data) == FileObject.CHUNK_SIZE
         return ChunkDataResponseMessage(file_id=file_id, chunk_num=chunk_num, data=chunk_data)
 
     def serialize(self):
         file_id_data = self._file_id.encode("utf-8")
         chunk_num = pack("I", self._chunk_num)
-        #assert len(self.data) == FileObject.CHUNK_SIZE TODO: wtf Persia
         return pack("I", self.type()) + file_id_data + chunk_num + self.data
 
     @classmethod
