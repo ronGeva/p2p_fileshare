@@ -3,6 +3,7 @@ A module containing different types used by the application
 """
 # TODO: consider using NamedTuple for this
 from filelock import FileLock
+from typing import Optional
 import os
 import hashlib
 
@@ -36,16 +37,31 @@ class SharedFileInfo(object):
 
 class FileObject(object):
     CHUNK_SIZE = 1024 * 1024 * 3  # 3 MB
+
     def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
         self._file_path = file_path
         self._files_data = {}
         self._chunk_num = None
         self._chunks = {}
         self._file_lock = FileLock(self._file_path+'.lock')
+        self._downloaded_chunks = 0  # amount of chunks already present in the file
         if new_file:
             self._get_file_data()
         elif files_data is not None:
             self._get_data_from_shared_file(files_data)
+            self._write_empty_file()
+
+    def _write_empty_file(self):
+        """
+        Write null-bytes into the file according to its expected size.
+        This is necessary since we want to later overwrite these bytes in place.
+        """
+        bytes_written = 0
+        with open(self._file_path, 'wb') as f:
+            while bytes_written < self._files_data['size']:
+                bytes_to_write = min(self.CHUNK_SIZE, self._files_data['size'] - bytes_written)
+                f.write(bytes(bytes_to_write))
+                bytes_written += bytes_to_write
 
     @property
     def chunk_mum(self):
@@ -90,16 +106,6 @@ class FileObject(object):
             current_md5.update(chunk_data)
         return current_md5.hexdigest()
 
-    def verify_all_chunks(self, chunks_md5: dict):
-        for i in range(self.chunk_mum):
-            if i in self._chunks and self._chunks[i] is None:
-                self._chunks.pop(i)
-        for chunk, chunk_md5 in chunks_md5.items():
-            if not self.verify_chunk(chunk, chunk_md5):
-                # log and update db on corrupted chunk
-                return False
-        return True
-
     def read_chunk(self, chunk: int) -> bytes:
         assert chunk < self.chunk_mum
         self._file_lock.acquire()
@@ -113,27 +119,31 @@ class FileObject(object):
             assert chunk_data is not None
             return chunk_data
 
-    def write_chunk(self, chunk: int, chunk_data: str):
+    def write_chunk(self, chunk: int, chunk_data: bytes):
         assert chunk < self.chunk_mum
         assert len(chunk_data) <= self.CHUNK_SIZE
-        self._file_lock.acquire()
-        try:
-            with open(self._file_path, 'ab') as f:
-                f.seek(self.CHUNK_SIZE*chunk)
-                f.write(chunk_data)
-        finally:
-            self._chunks[chunk] = True
-            self._file_lock.release()
+        with open(self._file_path, 'r+b') as f:
+            f.seek(self.CHUNK_SIZE * chunk)
+            f.write(chunk_data)
+        self._chunks[chunk] = True
+        self._downloaded_chunks += 1
 
     def get_shared_file(self):
         return SharedFile(self._files_data['unique_id'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],
                                  []) 
 
-    def get_empty_chunk(self):
+    def get_empty_chunk(self) -> Optional[int]:
         for i in range(self.chunk_mum):
             if i not in self._chunks:
                 return i
         return None
 
-    def lock_chunk(self, chunk):
-        self._chunks[chunk] = None
+    def has_empty_chunks(self) -> bool:
+        return self._downloaded_chunks != self.chunk_mum
+
+    def lock_chunk(self, chunk_num: int):
+        self._chunks[chunk_num] = None
+
+    def unlock_chunk(self, chunk_num: int):
+        if chunk_num in self._chunks:
+            self._chunks.pop(chunk_num)
