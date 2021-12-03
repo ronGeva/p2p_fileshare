@@ -5,6 +5,7 @@ from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import ClientIdMessage
 from files_manager import FilesManager
 from os.path import abspath, dirname, join
+from typing import Optional
 
 
 CLIENT_ID_STORAGE = join(dirname(abspath(__file__)), 'CLIENT_ID.dat')
@@ -43,7 +44,9 @@ def perform_command(user_input: str, files_manager: FilesManager):
         files_manager.share_file(file_path)
         # TODO: allow this call to raise exceptions, if they're not fatal catch them here and print them nicely
     elif user_input.startswith("list-downloads"):
-        files_manager.list_downloads()
+        downloads_status = files_manager.list_downloads()
+        for status in downloads_status:
+            print(status)
     elif user_input.startswith("remove-download "):
         downloader_id = user_input.split(" ")[1]
         files_manager.remove_download(downloader_id)
@@ -52,7 +55,7 @@ def perform_command(user_input: str, files_manager: FilesManager):
     return False
 
 
-def get_client_id() -> str:
+def get_client_id() -> Optional[str]:
     """
     Retrieves the client's unique id from a hard-coded path.
     If the unique id is not found, returns None
@@ -93,7 +96,6 @@ def main(args):
         except Exception as e:
             print('Couldn\'t perform command :(')
             print(traceback.format_exc())
-
 
 
 if __name__ == '__main__':

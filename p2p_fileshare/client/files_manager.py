@@ -93,12 +93,14 @@ class FilesManager(object):
             self.downloaders[unique_id+'-'+local_path]=fd
             logger.debug('FileDownloader started!')
 
-    def list_downloads(self):
+    def list_downloads(self) -> list[str]:
+        downloads_status = []
         for fd_id in self.downloaders:
             if self.downloaders[fd_id].is_done():
-                logger.debug(f"{fd_id}: Done")
+                downloads_status.append(f"{fd_id}: Done")  # TODO: handle failed downloads
             else:
-                logger.debug(f"{fd_id}: In progress")
+                downloads_status.append(f"{fd_id}: In progress")
+        return downloads_status
 
     def remove_download(self, downloader_id: str):
         if downloader_id not in self.downloaders:
