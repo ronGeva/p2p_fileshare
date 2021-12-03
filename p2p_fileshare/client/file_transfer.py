@@ -34,15 +34,14 @@ class FileDownloader(object):
         for downloader_to_remove in downloaders_to_remove:
             self._chunk_downloaders.remove(downloader_to_remove)
 
-    def _choose_origin(self, origin_chunk):
-        got_origin = False
-        for i in range(10):
-        # TODO: Make better logic, and maybe ask the server for the best origin
-            origin = random.choice(self._file_info.origins)
-        # TODO: Add origin ID to SharedFileInfo so we can update the server on the successful download
-        #return origin.id, (origin.ip, origin.port)
+    def _choose_origin(self, chunk_num):
+        """
+        Retrieves the best origin from which to download the file chunk.
+        """
+        # TODO: improve this logic to consider RTT
+        for origin in self._file_info.origins:
             if origin.ip is not None and origin.port is not None:
-                return (origin.ip, origin.port)
+                return origin.ip, origin.port
         raise Exception('Coun\'nt find an origin to download the file')
 
     def _run_chunk_downloaders(self):
