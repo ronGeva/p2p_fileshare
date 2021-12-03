@@ -51,10 +51,8 @@ class FileDownloader(object):
                 # we're finished
                 return
             client_addr = self._choose_origin(chunk_num)  # ask server for new chunk download_server
-            client_id = 'NOT_USED TODO: make use'
             # start ChunkDownloader
-            chunk_downloader = ChunkDownloader(self._file_info.unique_id, client_id, client_addr, self._file_object,
-                                               chunk_num)
+            chunk_downloader = ChunkDownloader(self._file_info.unique_id, client_addr, self._file_object, chunk_num)
             self._chunk_downloaders.append(chunk_downloader)
             chunk_downloader.start()
 
@@ -86,10 +84,9 @@ class FileDownloader(object):
 
 
 class ChunkDownloader(Thread):
-    def __init__(self, file_id: str, client_id: str, client_addr: tuple, file_object: FileObject, chunk_num: int):
+    def __init__(self, file_id: str, client_addr: tuple, file_object: FileObject, chunk_num: int):
         super().__init__()
         self._file_id = file_id
-        self._client_id = client_id
         self._client_addr = client_addr
         self._file_object = file_object
         self._chunk = chunk_num
@@ -122,10 +119,6 @@ class ChunkDownloader(Thread):
     @property
     def chunk(self):
         return self._chunk
-
-    @property
-    def client_id(self):
-        return self._client_id
 
     def stop(self):
         self.stop_event.set()
