@@ -115,14 +115,13 @@ class ChunkDownloader(Thread):
         return chunk_download_response.data
 
     def run(self):
-        # send get_chunk_message
-        # Non blocking recv
-            #???? how to make sure get chunk doesn't block so you can stop on signal set
-        self._init_downloader()
-        self._file_object.lock_chunk(self.chunk)
-        data = self._get_chunk_data()
-        self._file_object.write_chunk(self.chunk, data) # Make sure there is timeout on this in file object
-        self._stop()
+        try:
+            self._init_downloader()
+            self._file_object.lock_chunk(self.chunk)
+            data = self._get_chunk_data()
+            self._file_object.write_chunk(self.chunk, data) # Make sure there is timeout on this in file object
+        finally:
+            self.stop()
 
     @property
     def chunk(self):
