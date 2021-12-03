@@ -35,7 +35,7 @@ class SharedFileInfo(object):
 
 
 class FileObject(object):
-    CHUNK_SIZE = 1024 * 64  # 64 KB
+    CHUNK_SIZE = 1024 * 1024 * 3  # 3 MB
     def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
         self._file_path = file_path
         self._files_data = {}
