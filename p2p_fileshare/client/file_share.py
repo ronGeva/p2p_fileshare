@@ -16,7 +16,7 @@ logger = getLogger(__file__)
 
 
 # NOTE: if we want to be able to query ongoing file transfers, this should probably be refactored into a class.
-def transfer_file_to_client(downloader_socket: socket.socket, db_manager: DBManager):
+def transfer_file_chunk_to_client(downloader_socket: socket.socket, db_manager: DBManager):
     channel = Channel(downloader_socket)
     transfer_request = channel.wait_for_message(StartFileTransferMessage)
     file_path = db_manager.get_shared_file_path(transfer_request._file_id)
@@ -27,8 +27,6 @@ def transfer_file_to_client(downloader_socket: socket.socket, db_manager: DBMana
     chunk_data = file_object.read_chunk(transfer_request._chunk_num)
     logger.debug("Sending a ChunkDataResponseMessage to another client")
     channel.send_message(ChunkDataResponseMessage(transfer_request._file_id, transfer_request._chunk_num, chunk_data))
-    # TODO: we now have the file path and the channel to the client. Wait for the client to request chunks of the file
-    # and transfer them to it via channel.send_message(...)
 
 
 class FileShareChannel(object):
@@ -48,12 +46,16 @@ class FileShareServer(Server):
         self._db = local_db
 
     def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int]):
-        new_transfer_thread = Thread(target=transfer_file_to_client, args=(client, self._db))
+        new_transfer_thread = Thread(target=transfer_file_chunk_to_client, args=(client, self._db))
         self._active_transfers.append(new_transfer_thread)
         new_transfer_thread.start()
 
     def _remove_old_clients(self):
-        pass  # TODO: implement
+        """
+        Filters out all finished threads from the list of running threads.
+        """
+        self._active_transfers = [active_transfer for active_transfer in self._active_transfers
+                                  if active_transfer.is_alive()]
 
     @property
     def sharing_port(self):
