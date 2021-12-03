@@ -29,11 +29,6 @@ def transfer_file_chunk_to_client(downloader_socket: socket.socket, db_manager: 
     channel.send_message(ChunkDataResponseMessage(transfer_request._file_id, transfer_request._chunk_num, chunk_data))
 
 
-class FileShareChannel(object):
-    def __init__(self, downloader_socket):
-        self._channel = Channel(downloader_socket)
-
-
 class FileShareServer(Server):
     """
     The server responsible for managing file sharing.
