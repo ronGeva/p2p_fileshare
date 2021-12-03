@@ -89,6 +89,7 @@ class Channel(object):
                 raise e
 
     def wait_for_message(self, expected_msg_type: type, timeout=None):
+        # TODO: handle error message (so that if something failed the endpoint will know)
         while not self._stop_event.is_set():
             new_msg = self.recv_message()
             if isinstance(new_msg, expected_msg_type):
