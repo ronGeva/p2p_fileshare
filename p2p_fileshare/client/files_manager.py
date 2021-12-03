@@ -89,8 +89,9 @@ class FilesManager(object):
             shared_file = self._communication_channel.wait_for_message(SharingInfoResponseMessage).shared_file
             for sc in shared_file.origins:
                 logger.debug(f"Origin: {sc.ip}:{sc.port}")
-            fd = FileDownloader(shared_file, self._communication_channel, local_path)
-            self.downloaders[unique_id+'-'+local_path]=fd
+
+            file_downloader = FileDownloader(shared_file, self._communication_channel, local_path)
+            self.downloaders[unique_id + '-' + local_path] = file_downloader
             logger.debug('FileDownloader started!')
 
     def list_downloads(self) -> list[str]:

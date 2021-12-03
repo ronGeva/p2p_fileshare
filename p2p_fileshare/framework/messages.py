@@ -98,7 +98,7 @@ class FileMessage(Message):
 
     @classmethod
     def deserialize(cls, data):
-        # TODO: desrialize origins, unique id
+        # TODO: desrialize origins
         name_len = struct.unpack("I", data[:4])[0]
         name = data[4:4 + name_len].decode("utf-8")
         modification_time, size = struct.unpack("II", data[4 + name_len:12 + name_len])
@@ -107,7 +107,7 @@ class FileMessage(Message):
         return FileMessage(SharedFile(unique_id, name, modification_time, size, [])), next_msg_offset
 
     def serialize(self):
-        # TODO: serialize origins, unique id
+        # TODO: serialize origins
         data = struct.pack("I", len(self.file.name)) + self.file.name.encode("utf-8") + \
                struct.pack("II", self.file.modification_time, self.file.size) + bytes(self.file.unique_id, 'utf-8')
         return data
