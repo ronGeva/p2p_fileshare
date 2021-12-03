@@ -3,7 +3,7 @@ This modules governs DB-related actions.
 """
 import logging
 import sqlite3
-from contextlib import contextmanager
+from typing import Optional
 from p2p_fileshare.framework.types import SharedFile, FileOrigin
 from p2p_fileshare.framework.db import AbstractDBManager, db_func
 
@@ -48,10 +48,10 @@ class DBManager(AbstractDBManager):
         return cursor.fetchone() is not None
 
     @db_func
-    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile, origin_id: str):
+    def new_share(self, cursor: sqlite3.Cursor, new_file: SharedFile, origin_id: str) -> bool:
         """
         Adds a new share to the shares table, and in case the file added isn't in the files table, adds it to it.
-        :return: None.
+        :return: Whether the new share addition was successful.
         """
         if not self._is_file_already_shared(cursor, new_file.unique_id, origin_id):
             self._add_new_file(cursor, new_file)
@@ -95,11 +95,10 @@ class DBManager(AbstractDBManager):
         return [line[0] for line in cursor.fetchall()]
 
     @db_func
-    def get_shared_file_info(self, cursor: sqlite3.Cursor, file_id: str) -> list[SharedFile]:
+    def get_shared_file_info(self, cursor: sqlite3.Cursor, file_id: str) -> Optional[SharedFile]:
         """
-        Searches for a single file via its filename.
-        Every file containing the requested filename as a substring will be retrieved.
-        :return: A list of the files (each represented by a SharedFile object).
+        Searches for a single file via its unique ID.
+        :return: The SharedFIle requested.
         """
         cursor.execute(f"SELECT * FROM files where unique_id like '%{file_id}%';")
         result = cursor.fetchall()

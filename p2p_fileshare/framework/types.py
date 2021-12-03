@@ -4,6 +4,7 @@ A module containing different types used by the application
 # TODO: consider using NamedTuple for this
 from filelock import FileLock
 from typing import Optional
+from math import ceil
 import os
 import hashlib
 
@@ -11,7 +12,6 @@ import hashlib
 class FileOrigin(object):
     def __init__(self, address: (str, int)):
         self.address = address
-        # TODO: consider adding RTT - what does it mean for the server though?
 
 
 class SharedFile(object):
@@ -36,14 +36,18 @@ class SharedFileInfo(object):
 
 
 class FileObject(object):
+    """
+    A class which represents a shared file during the download/upload stage.
+    It can be used by both the sharing client to transfer chunks of it to the downloading client,
+    and by the downloading to receive and write chunks into its own local copy of the file.
+    """
     CHUNK_SIZE = 1024 * 1024 * 3  # 3 MB
 
-    def __init__(self, file_path: str, files_data: SharedFile =None, new_file: bool =False):
+    def __init__(self, file_path: str, files_data: SharedFile = None, new_file: bool = False):
         self._file_path = file_path
         self._files_data = {}
         self._chunk_num = None
         self._chunks = {}
-        self._file_lock = FileLock(self._file_path+'.lock')
         self._downloaded_chunks = 0  # amount of chunks already present in the file
         if new_file:
             self._get_file_data()
@@ -64,19 +68,20 @@ class FileObject(object):
                 bytes_written += bytes_to_write
 
     @property
-    def chunk_mum(self):
+    def amount_of_chunks(self):
+        """
+        Total amount of chunks in the file.
+        """
         if self._chunk_num is None:
-            self._chunk_num = int(self._files_data['size'] / self.CHUNK_SIZE)
-            if self._files_data['size'] % self.CHUNK_SIZE != 0:
-                self._chunk_num += 1
+            self._chunk_num = ceil(self._files_data['size'] / self.CHUNK_SIZE)
         return self._chunk_num
 
     def _get_file_data(self):
-        #unique_id, name, modification_time, size, origins
         file_stats = os.stat(self._file_path)
         self._files_data['name'] = os.path.basename(self._file_path)
         self._files_data['modification_time'] = int(file_stats.st_mtime)
         self._files_data['size'] = file_stats.st_size
+        # TODO: retrieve unique ID from client's DB instead of recalculating it
         self._files_data['unique_id'] = self.get_file_hash()
 
     def _get_data_from_shared_file(self, files_data: SharedFile):
@@ -85,47 +90,39 @@ class FileObject(object):
         self._files_data['size'] = files_data.size
         self._files_data['unique_id'] = files_data.unique_id
 
-    def update_db(self):
-        pass
-
-    def get_chunk_md5(self, chunk: int) -> str:
-        assert chunk < self.chunk_mum
-        current_md5 = hashlib.md5()
-        chunk_data = self.read_chunk(chunk)
-        current_md5.update(chunk_data)
-        return current_md5.hexdigest()
-
     def get_file_hash(self) -> str:
         """
         Calculates the hash of a local file's data by reading chunks of it and feeding them to the md5 algorithm.
         :return an hexadecimal representation of the file's hash.
         """
         current_md5 = hashlib.md5()
-        for i in range(self.chunk_mum):
+        for i in range(self.amount_of_chunks):
             chunk_data = self.read_chunk(i)
             current_md5.update(chunk_data)
         return current_md5.hexdigest()
 
-    def read_chunk(self, chunk: int) -> bytes:
-        assert chunk < self.chunk_mum
-        self._file_lock.acquire()
+    def read_chunk(self, chunk_num: int) -> bytes:
+        assert chunk_num < self.amount_of_chunks
         chunk_data = None
         try:
             with open(self._file_path, 'rb+') as f:
-                f.seek(self.CHUNK_SIZE*chunk)
+                f.seek(self.CHUNK_SIZE * chunk_num)
                 chunk_data = f.read(self.CHUNK_SIZE)
         finally:
-            self._file_lock.release()
             assert chunk_data is not None
             return chunk_data
 
-    def write_chunk(self, chunk: int, chunk_data: bytes):
-        assert chunk < self.chunk_mum
+    def write_chunk(self, chunk_num: int, chunk_data: bytes):
+        """
+        Writes chunk_data into the local file at chunk_num * CHUNK_SIZE offset.
+        NOTE: This function merely overwrites existing data in the file, and does not increase the file size.
+        """
+        assert chunk_num < self.amount_of_chunks
         assert len(chunk_data) <= self.CHUNK_SIZE
         with open(self._file_path, 'r+b') as f:
-            f.seek(self.CHUNK_SIZE * chunk)
+            f.seek(self.CHUNK_SIZE * chunk_num)
             f.write(chunk_data)
-        self._chunks[chunk] = True
+        self._chunks[chunk_num] = True
         self._downloaded_chunks += 1
 
     def get_shared_file(self):
@@ -133,13 +130,17 @@ class FileObject(object):
                                  []) 
 
     def get_empty_chunk(self) -> Optional[int]:
-        for i in range(self.chunk_mum):
+        # TODO: figure out a faster algorithm
+        for i in range(self.amount_of_chunks):
             if i not in self._chunks:
                 return i
         return None
 
     def has_empty_chunks(self) -> bool:
-        return self._downloaded_chunks != self.chunk_mum
+        """
+        Returns whether the files has been completely downloaded.
+        """
+        return self._downloaded_chunks != self.amount_of_chunks
 
     def lock_chunk(self, chunk_num: int):
         self._chunks[chunk_num] = None

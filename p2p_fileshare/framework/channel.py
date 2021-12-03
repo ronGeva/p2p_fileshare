@@ -17,8 +17,12 @@ class SocketClosedException(Exception):
     pass
 
 
+class StopEventSignaledException(Exception):
+    pass
+
+
 class Channel(object):
-    def __init__(self, endpoint_socket: socket, stop_event: Event =None):
+    def __init__(self, endpoint_socket: socket, stop_event: Event = None):
         self._socket = endpoint_socket
         self._is_socket_closed = False # TODO: Add try-except on SocketClosedException on needed function to change flag
         if stop_event is None:
@@ -35,8 +39,16 @@ class Channel(object):
         return self.wait_for_message(message.matching_response_type)
 
     def _get_data_from_sock(self, data_len):
+        """
+        Reads data from the socket until data_len bytes has been received or until the stop event has been signaled.
+        @throws SocketClosedException if the socket is closed during the read operation.
+        @throws StopEventSignaledException if the stop event is signaled during the read operation.
+        """
         received_data = b''
-        while len(received_data) != data_len and not self._stop_event.is_set():
+        while len(received_data) != data_len:
+            if self._stop_event.is_set():
+                raise StopEventSignaledException()
+
             rlist, _, _ = select.select([self._socket], [], [], 0)
             if rlist:
                 new_data = self._socket.recv(data_len-len(received_data))
@@ -77,6 +89,7 @@ class Channel(object):
                 raise e
 
     def wait_for_message(self, expected_msg_type: type, timeout=None):
+        # TODO: handle error message (so that if something failed the endpoint will know)
         while not self._stop_event.is_set():
             new_msg = self.recv_message()
             if isinstance(new_msg, expected_msg_type):
