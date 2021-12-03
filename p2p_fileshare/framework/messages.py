@@ -19,8 +19,6 @@ SHARING_INFO_REQUEST_MESSAGE_TYPE = 6
 SHARING_INFO_RESPONSE_MESSAGE_TYPE = 7
 START_FILE_TRANSFER_MESSAGE_TYPE = 8
 CHUNK_DATA_RESPONSE_MESSAGE_TYPE = 9
-SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE = 10
-UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE = 11
 
 
 def get_message_type_object(message_type):
@@ -33,9 +31,7 @@ def get_message_type_object(message_type):
                      START_FILE_TRANSFER_MESSAGE_TYPE: StartFileTransferMessage,
                      CHUNK_DATA_RESPONSE_MESSAGE_TYPE: ChunkDataResponseMessage,
                      GENERAL_SUCESS_MESSAGE_TYPE: GeneralSuccessMessage,
-                     GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage,
-                     SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE: SuccessfulChunkDownloadUpdateMessage,
-                     UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE: UnsuccessfulChunkDownloadUpdateMessage}
+                     GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage}
     return message_types.get(message_type, None)
 
 
@@ -53,10 +49,10 @@ class Message(object):
 
     @property
     def matching_response_type(self):
-        raise NotImplementedError
+        return None  # not all derived classes must implement this method
 
     @classmethod
-    def type(self):
+    def type(cls):
         raise NotImplementedError
 
 
@@ -72,7 +68,7 @@ class GeneralSuccessMessage(Message):
         return struct.pack("I", self.type()) + bytes(self.success_info, "utf-8")
 
     @classmethod
-    def type(self):
+    def type(cls):
         return GENERAL_SUCESS_MESSAGE_TYPE
 
 
@@ -88,7 +84,7 @@ class GeneralErrorMessage(Message):
         return struct.pack("I", self.type()) + bytes(self.error_info, "utf-8")
 
     @classmethod
-    def type(self):
+    def type(cls):
         return GENERAL_ERROR_MESSAGE_TYPE
 
 
@@ -98,7 +94,6 @@ class FileMessage(Message):
 
     @classmethod
     def deserialize(cls, data):
-        # TODO: desrialize origins
         name_len = struct.unpack("I", data[:4])[0]
         name = data[4:4 + name_len].decode("utf-8")
         modification_time, size = struct.unpack("II", data[4 + name_len:12 + name_len])
@@ -107,13 +102,12 @@ class FileMessage(Message):
         return FileMessage(SharedFile(unique_id, name, modification_time, size, [])), next_msg_offset
 
     def serialize(self):
-        # TODO: serialize origins
         data = struct.pack("I", len(self.file.name)) + self.file.name.encode("utf-8") + \
                struct.pack("II", self.file.modification_time, self.file.size) + bytes(self.file.unique_id, 'utf-8')
         return data
 
     @classmethod
-    def type(self):
+    def type(cls):
         return FILE_MESSAGE_TYPE
 
 
@@ -143,10 +137,6 @@ class FileListMessage(Message):
     @classmethod
     def type(cls):
         return FILE_LIST_MESSAGE_TYPE
-
-    @property
-    def matching_response_type(self):
-        return None
 
 
 class SearchFileMessage(Message):
@@ -214,10 +204,10 @@ class ClientIdMessage(Message):
         return CLIENT_ID_MESSAGE_TYPE
 
 
-class FileDownloadRequest(Message):
+class SharingInfoRequestMessage(Message):
     """
-    This message represents all messages including only the unique id of the file.
-    Messages which only need to transfer this data can inherit from this class and only implement the type method.
+    This message is used by the client to retrieve information about clients that share a specific file.
+    It is used by clients to initialize file download.
     """
     def __init__(self, file_unique_id: str):
         self.file_unique_id = file_unique_id
@@ -231,10 +221,19 @@ class FileDownloadRequest(Message):
         unique_id_data = self.file_unique_id.encode("utf-8")
         return pack("I", self.type()) + unique_id_data
 
+    @classmethod
+    def type(cls):
+        return SHARING_INFO_REQUEST_MESSAGE_TYPE
 
-class StartFileTransferMessage(FileDownloadRequest):
+    @property
+    def matching_response_type(self):
+        return SharingInfoResponseMessage
+
+
+class StartFileTransferMessage(Message):
     """
-    This message is used by the client to let another client (the sharing client) know what file he'd like to download.
+    This message is used by the client to let another client (the sharing client) know what file chunk he'd like to
+     download.
     """
     def __init__(self, file_id: str, chunk_num: int):
         self._file_id = file_id
@@ -258,20 +257,6 @@ class StartFileTransferMessage(FileDownloadRequest):
     @property
     def matching_response_type(self):
         return ChunkDataResponseMessage
-
-
-class SharingInfoRequestMessage(FileDownloadRequest):
-    """
-    This message is used by the client to retrieve information about clients that share a specific file.
-    It is used by clients to initialize file download.
-    """
-    @classmethod
-    def type(cls):
-        return SHARING_INFO_REQUEST_MESSAGE_TYPE
-
-    @property
-    def matching_response_type(self):
-        return SharingInfoResponseMessage
 
 
 class SharingInfoResponseMessage(Message):
@@ -316,7 +301,8 @@ class SharingInfoResponseMessage(Message):
             sharing_clients_data += inet_aton(sharing_client.ip)
             port = sharing_client.port if sharing_client.port is not None else 0
             sharing_clients_data += pack("H", port)
-        data = pack("I", self.type()) + unique_id_data + name_len + self.shared_file.name.encode("utf-8") + modification_time + size + amount_of_sharing_clients_data + sharing_clients_data
+        data = pack("I", self.type()) + unique_id_data + name_len + self.shared_file.name.encode("utf-8") +\
+               modification_time + size + amount_of_sharing_clients_data + sharing_clients_data
         return data
 
     @classmethod
@@ -324,9 +310,9 @@ class SharingInfoResponseMessage(Message):
         return SHARING_INFO_RESPONSE_MESSAGE_TYPE
 
 
-class ChunkDataResponseMessage(FileDownloadRequest):
+class ChunkDataResponseMessage(Message):
     """
-    This message is used by the client to let another client (the sharing client) know what file he'd like to download.
+    This message is used by a sharing client to transfer a chunk's data to a downloading client.
     """
     def __init__(self, file_id: str, chunk_num: int, data: bytes):
         self._file_id = file_id
@@ -348,35 +334,3 @@ class ChunkDataResponseMessage(FileDownloadRequest):
     @classmethod
     def type(cls):
         return CHUNK_DATA_RESPONSE_MESSAGE_TYPE
-
-
-class ChunkDownloadUpdateMessage(Message):
-    def __init__(self, file_id: str, chunk_num: int, origin_client_id: str):
-        self._file_id = file_id
-        self._chunk_num = chunk_num
-        self._origin_client_id = origin_client_id
-
-    @classmethod
-    def deserialize(cls, data: bytes):
-        file_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
-        chunk_num = unpack("I", data[4 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH])[0]
-        origin_client_id = data[8 + UNIQUE_ID_LENGTH: 8 + UNIQUE_ID_LENGTH + UNIQUE_ID_LENGTH].decode("utf-8")
-        return cls(file_id=file_id, chunk_num=chunk_num, origin_client_id=origin_client_id)
-
-    def serialize(self):
-        file_id = self._file_id.encode("utf-8")
-        chunk_num = pack("I", self._chunk_num)
-        origin_client_id = self._origin_client_id.encode("utf-8")
-        return pack("I", self.type()) + file_id + chunk_num + origin_client_id
-
-
-class SuccessfulChunkDownloadUpdateMessage(ChunkDownloadUpdateMessage):
-    @classmethod
-    def type(cls):
-        return SUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE
-
-
-class UnsuccessfulChunkDownloadUpdateMessage(ChunkDownloadUpdateMessage):
-    @classmethod
-    def type(cls):
-        return UNSUCCESSFUL_CHUNK_DOWNLOAD_MESSAGE_TYPE
