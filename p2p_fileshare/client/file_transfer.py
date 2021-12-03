@@ -3,7 +3,6 @@ This module contains the implementation of the local downloading logic.
 """
 
 import time
-import random
 from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
@@ -12,6 +11,11 @@ from p2p_fileshare.framework.messages import StartFileTransferMessage
 
 
 class FileDownloader(object):
+    """
+    A class responsible for governing the file downloading operation from different origins.
+    The FileDownloader creates and monitors instances of ChunkDownloader until either the requested file is successfully
+    downloaded or a fatal error occurs.
+    """
     MAX_CHUNK_DOWNLOADERS = 2
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
@@ -50,7 +54,7 @@ class FileDownloader(object):
             if chunk_num is None:
                 # we're finished
                 return
-            client_addr = self._choose_origin(chunk_num)  # ask server for new chunk download_server
+            client_addr = self._choose_origin(chunk_num)
             # start ChunkDownloader
             chunk_downloader = ChunkDownloader(self._file_info.unique_id, client_addr, self._file_object, chunk_num)
             self._chunk_downloaders.append(chunk_downloader)
@@ -84,12 +88,15 @@ class FileDownloader(object):
 
 
 class ChunkDownloader(Thread):
+    """
+    A class responsible for governing the download of a single file chunk.
+    """
     def __init__(self, file_id: str, client_addr: tuple, file_object: FileObject, chunk_num: int):
         super().__init__()
         self._file_id = file_id
         self._client_addr = client_addr
         self._file_object = file_object
-        self._chunk = chunk_num
+        self._chunk_num = chunk_num
         self.stop_event = Event()
         self._channel = None
         self.finished = False
@@ -100,32 +107,29 @@ class ChunkDownloader(Thread):
         self._channel = Channel(s, self.stop_event)
 
     def _get_chunk_data(self) -> bytes:
-        download_message = StartFileTransferMessage(file_id=self._file_id, chunk_num=self.chunk)
+        download_message = StartFileTransferMessage(file_id=self._file_id, chunk_num=self._chunk_num)
         chunk_download_response = self._channel.send_msg_and_wait_for_response(download_message)
         return chunk_download_response.data
 
     def run(self):
         try:
             self._init_downloader()
-            self._file_object.lock_chunk(self.chunk)
+            self._file_object.lock_chunk(self._chunk_num)
             data = self._get_chunk_data()
-            self._file_object.write_chunk(self.chunk, data)  # Make sure there is timeout on this in file object
+            self._file_object.write_chunk(self._chunk_num, data)  # Make sure there is timeout on this in file object
         except Exception as e:
-            self._file_object.unlock_chunk(self.chunk)  # something went wrong - we still need to download this chunk
+            # Something went wrong - we still need to download this chunk
+            self._file_object.unlock_chunk(self._chunk_num)
             raise e
         finally:
             self.stop()
 
-    @property
-    def chunk(self):
-        return self._chunk
-
     def stop(self):
+        """
+        Stops the chunk downloading thread and closes its underlying channel.
+        """
         self.stop_event.set()
         time.sleep(1)
-        self._stop()
-
-    def _stop(self):
         if self._channel is not None:
             self._channel.close()
         self.finished = True
