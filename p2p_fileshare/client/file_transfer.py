@@ -22,9 +22,7 @@ class FileDownloader(object):
         self._stop_event = Event()
         self._chunk_downloaders = []
         self._thread = Thread(target=self.__start)
-        ## TODO?: Add chunks md5s to file info and give it to file_object
         self._file_object = FileObject(self._local_path, self._file_info)
-        #self._file_object.verify_all_chunks() ## ?? maybe do it in FileObject init
         self._thread.start()
 
     def _initialize_file_download(self):
@@ -35,12 +33,6 @@ class FileDownloader(object):
         for chunk_downloader in self._chunk_downloaders:
             #if chunk finished: TODO - Add the ability to kill blocking downloader
             if chunk_downloader.finished:
-                # verify chunk with server
-                if self._file_object.verify_chunk(chunk_downloader.chunk, None):
-                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_info.unique_id, chunk_downloader.chunk, chunk_downloader.client_id)
-                else:
-                    download_update_message = SuccessfulChunkDownloadUpdateMessage(self._file_info.unique_id, chunk_downloader.chunk, chunk_downloader.client_id)
-                self._server_channel.send_message(download_update_message)
                 downloaders_to_remove.append(chunk_downloader)
 
         for downloader_to_remove in downloaders_to_remove:
@@ -130,7 +122,6 @@ class ChunkDownloader(Thread):
         self._file_object.lock_chunk(self.chunk)
         data = self._get_chunk_data()
         self._file_object.write_chunk(self.chunk, data) # Make sure there is timeout on this in file object
-        self._file_object.verify_chunk(self.chunk, None)
         self._stop()
 
     @property
