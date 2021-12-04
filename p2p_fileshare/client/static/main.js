@@ -64,13 +64,31 @@ function newShare() {
     let responseJSON = JSON.parse(request.responseText);
     if (!responseJSON["success"])
         window.alert(responseJSON["error"]);
+    listShares();
 }
 
 function listShares() {
-    // TODO: implement
+    let request = new XMLHttpRequest();
+    request.open("GET", "/list-shares", false);
+    request.send(null);
+    let responseJSON = JSON.parse(request.responseText);
+    let currentSharesDiv = document.getElementById("shares-div");
+    let currentSharesContent = "";
+    if (!responseJSON["success"])
+        // let the user know something went wrong without prompting an infinite amount of dialog boxes
+        currentSharesContent = responseJSON["error"];
+    else {
+        const shares = responseJSON["shares"];
+        for (let i = 0; i < shares.length; i++) {
+            currentSharesContent += "Local path: " + shares[i]["local_path"] +
+                "<input type='button' value='stop sharing' onclick='stopSharing(\"" + shares[i]["unique_id"] + "\")'>" +
+                "<br/>";
+        }
+    }
+    currentSharesDiv.innerHTML = currentSharesContent;
 }
 
-function stopSharing() {
+function stopSharing(uniqueID) {
     // TODO: implement
 }
 

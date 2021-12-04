@@ -103,3 +103,6 @@ class FilesManager(object):
         else:
             fd = self.downloaders.pop(downloader_id)
             fd.stop()
+
+    def list_shares(self):
+        return self._local_db.list_shares()

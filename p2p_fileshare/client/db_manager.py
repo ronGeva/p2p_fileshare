@@ -29,3 +29,8 @@ class DBManager(AbstractDBManager):
     @db_func
     def add_share(self, cursor: sqlite3.Cursor, unique_id: str, file_path: str):
         cursor.execute(f"insert into files values ('{file_path}', '{unique_id}')")
+
+    @db_func
+    def list_shares(self, cursor: sqlite3.Cursor):
+        cursor.execute(f"select * from files")
+        return cursor.fetchall()

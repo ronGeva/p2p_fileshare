@@ -11,7 +11,22 @@ communication_channel = None  # type: Optional[Channel]
 files_manager = None  # type: Optional[FilesManager]
 
 
+def wrap_response(func):
+    def inner(*args, **kwargs):
+        try:
+            response = func(*args, **kwargs)
+            if response is None:
+                response = {}
+            response["success"] = True
+            return response
+        except Exception as e:
+            return {"success": False, "error": e.args}
+    inner.__name__ = func.__name__ + "_inner"  # required so that Flask will allow us to wrap our functions
+    return inner
+
+
 @app.route('/search/<filename>')
+@wrap_response
 def search_file(filename):
     result = files_manager.search_file(filename)
     response = {"files": []}
@@ -23,6 +38,7 @@ def search_file(filename):
 
 
 @app.route('/share')
+@wrap_response
 def share_file():
     file_path = request.args.get('local_path')
     try:
@@ -33,6 +49,7 @@ def share_file():
 
 
 @app.route('/download')
+@wrap_response
 def download_file():
     unique_id = request.args.get('unique_id')
     local_path = request.args.get('local_path')
@@ -40,6 +57,7 @@ def download_file():
 
 
 @app.route('/list-downloads')
+@wrap_response
 def list_downloads():
     downloaders = files_manager.list_downloads()
     response = {"downloads": []}
@@ -53,8 +71,22 @@ def list_downloads():
 
 
 @app.route('/remove-download/<download_id>')
+@wrap_response
 def remove_download(download_id):
     files_manager.remove_download(int(download_id))
+
+
+@app.route('/list-shares')
+@wrap_response
+def list_shares():
+    shares = files_manager.list_shares()
+    response = {"shares": []}
+    for share in shares:
+        response["shares"].append({
+            "local_path": share[0],
+            "unique_id": share[1]
+        })
+    return response
 
 
 @app.route('/')
