@@ -1,0 +1,18 @@
+.panel-div {
+    width: 33%;
+    height: 100%;
+    border-style: solid;
+    position: absolute;
+}
+
+#panel1 {
+    margin-left: 0;
+}
+
+#panel2 {
+    margin-left: 33%;
+}
+
+#panel3 {
+    margin-left: 66%;
+}

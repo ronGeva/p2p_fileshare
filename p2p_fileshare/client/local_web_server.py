@@ -1,9 +1,9 @@
 import sys
 from typing import Optional
-from flask import Flask, request
-from .files_manager import FilesManager
+from flask import Flask, request, render_template
+from files_manager import FilesManager
 from p2p_fileshare.framework.channel import Channel
-from .main import initialize_communication_channel
+from main import initialize_communication_channel
 
 
 app = Flask(__name__)
@@ -14,7 +14,12 @@ files_manager = None  # type: Optional[FilesManager]
 @app.route('/search/<filename>')
 def search_file(filename):
     result = files_manager.search_file(filename)
-    print(result)
+    response = {"files": []}
+    for file in result:
+        response["files"].append({
+            "description": f"Name: {file.name}, modification time: {file.modification_time}, size: {file.size}",
+            "unique_id": file.unique_id})
+    return response
 
 
 @app.route('/share/<file_path>')
@@ -38,6 +43,11 @@ def list_downloads():
 @app.route('/remote-download/<download_id>')
 def remove_download(download_id):
     files_manager.remove_download(download_id)
+
+
+@app.route('/')
+def main_page():
+    return render_template('app.html')
 
 
 def main(args):
