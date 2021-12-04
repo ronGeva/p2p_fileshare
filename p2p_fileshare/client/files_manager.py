@@ -5,7 +5,7 @@ import logging
 
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
-    SharingInfoRequestMessage, SharingInfoResponseMessage
+    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage
 from p2p_fileshare.framework.types import SharedFile
 from file_share import FileShareServer
 from db_manager import DBManager
@@ -106,3 +106,7 @@ class FilesManager(object):
 
     def list_shares(self):
         return self._local_db.list_shares()
+
+    def remove_share(self, unique_id: str):
+        self._communication_channel.send_message(RemoveShareMessage(unique_id))
+        self._local_db.remove_share(unique_id)

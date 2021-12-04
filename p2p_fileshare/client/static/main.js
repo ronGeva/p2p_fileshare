@@ -89,8 +89,16 @@ function listShares() {
 }
 
 function stopSharing(uniqueID) {
-    // TODO: implement
+    let request = new XMLHttpRequest();
+    request.open("GET", "/remove-share/" + uniqueID, false);
+    request.send(null);
+    let responseJSON = JSON.parse(request.responseText);
+    if (!responseJSON["success"])
+        window.alert(responseJSON["error"]);
+    else
+        listShares();
 }
 
+// initialize dynamic panels
 listDownloads();
 listShares();

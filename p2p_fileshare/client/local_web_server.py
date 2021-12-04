@@ -3,7 +3,7 @@ from typing import Optional
 from flask import Flask, request, render_template
 from files_manager import FilesManager
 from p2p_fileshare.framework.channel import Channel
-from main import initialize_communication_channel
+from main import initialize_communication_channel, resolve_id
 
 
 app = Flask(__name__)
@@ -89,6 +89,12 @@ def list_shares():
     return response
 
 
+@app.route('/remove-share/<unique_id>')
+@wrap_response
+def stop_shring(unique_id):
+    files_manager.remove_share(unique_id)
+
+
 @app.route('/')
 def main_page():
     return render_template('app.html')
@@ -99,6 +105,7 @@ def main(args):
     global files_manager
 
     communication_channel = initialize_communication_channel(args)
+    resolve_id(communication_channel)
     files_manager = FilesManager(communication_channel)
     app.run("localhost", 5050, debug=True)
 

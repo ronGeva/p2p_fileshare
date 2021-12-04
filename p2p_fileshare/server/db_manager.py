@@ -78,12 +78,15 @@ class DBManager(AbstractDBManager):
             cursor.execute(f"INSERT INTO origins values ('{unique_id}')")
 
     @db_func
-    def remove_share(self, cursor: sqlite3.Cursor, removed_file: SharedFile, origin: FileOrigin):
+    def remove_share(self, cursor: sqlite3.Cursor, file_unique_id: str, origin: str):
         """
         Removes a single client from the sharing list of a file.
+        @returns True if the share was removed successfully, False it didn't exist.
         """
-        # TODO: implement remove_share
-        pass
+        if not self._is_file_already_shared(cursor, file_unique_id, origin):
+            return False
+        cursor.execute(f"delete from shares where file='{file_unique_id}' and origin='{origin}'")
+        return True
 
     @db_func
     def find_sharing_clients(self, cursor: sqlite3.Cursor, file_unique_id: str):
