@@ -36,8 +36,17 @@ def download_file():
 
 @app.route('/list-downloads')
 def list_downloads():
-    result = files_manager.list_downloads()
-    print(result)
+    downloaders = files_manager.list_downloads()
+    response = {"downloads": []}
+    for downloader_id in downloaders.keys():
+        downloader = downloaders[downloader_id]
+        response["downloads"].append({
+            "local_path": downloader.local_path,
+            "name": downloader.file_info.name,
+            "id": downloader_id,
+            "done": downloader.is_done()
+        })
+    return response
 
 
 @app.route('/remote-download/<download_id>')
