@@ -25,7 +25,7 @@ class FilesManager(object):
         self._file_share_server = None
         self._file_share_thread = None
         self.__initialize_file_share_server()
-        self.downloaders = {}
+        self.downloaders = []
 
     def __start_file_share(self):
         # TODO: pass the sharing port to the server. Right now after stopping the app and starting it back on again
@@ -91,14 +91,14 @@ class FilesManager(object):
                 logger.debug(f"Origin: {sc.ip}:{sc.port}")
 
             file_downloader = FileDownloader(shared_file, self._communication_channel, local_path)
-            self.downloaders[unique_id + '-' + local_path] = file_downloader
+            self.downloaders.append(file_downloader)
             logger.debug('FileDownloader started!')
 
-    def list_downloads(self) -> dict[str, FileDownloader]:
+    def list_downloads(self) -> list[FileDownloader]:
         return self.downloaders
 
-    def remove_download(self, downloader_id: str):
-        if downloader_id not in self.downloaders:
+    def remove_download(self, downloader_id: int):
+        if not (0 <= downloader_id < len(self.downloaders)):
             logger.warning('Unknown downloader')
         else:
             fd = self.downloaders.pop(downloader_id)

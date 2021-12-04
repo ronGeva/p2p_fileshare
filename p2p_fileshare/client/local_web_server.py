@@ -38,20 +38,18 @@ def download_file():
 def list_downloads():
     downloaders = files_manager.list_downloads()
     response = {"downloads": []}
-    for downloader_id in downloaders.keys():
-        downloader = downloaders[downloader_id]
+    for downloader in downloaders:
         response["downloads"].append({
             "local_path": downloader.local_path,
             "name": downloader.file_info.name,
-            "id": downloader_id,
             "done": downloader.is_done()
         })
     return response
 
 
-@app.route('/remote-download/<download_id>')
+@app.route('/remove-download/<download_id>')
 def remove_download(download_id):
-    files_manager.remove_download(download_id)
+    files_manager.remove_download(int(download_id))
 
 
 @app.route('/')

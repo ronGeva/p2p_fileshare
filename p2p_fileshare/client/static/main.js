@@ -40,12 +40,20 @@ function listDownloads() {
             isThereADownloadInProgress = true; // found at least one download in progress
 
         currentDownloadsContent += downloads[i]["name"] + " -> " + downloads[i]["local_path"] +
-            "<input type='button' value='stop' onclick='removeDownload(\"" + downloads[i]["id"] + "\")'" +
+            "<input type='button' value='stop' onclick='removeDownload(" + i + ")'" +
             disabledAttribute + ">" + "<br/>";
     }
     currentDownloadsDiv.innerHTML = currentDownloadsContent;
     if (isThereADownloadInProgress)
-        setTimeout(listDownloads, 1000); // list downloads again in 1 second
+        // There is still a download in progress, schedule listDownloads again to check for its status.
+        setTimeout(listDownloads, 1000);
+}
+
+function removeDownload(downloadID) {
+    let request = new XMLHttpRequest()
+    request.open("GET", "/remove-download/" + downloadID, false);
+    request.send(null);
+    listDownloads();
 }
 
 listDownloads();
