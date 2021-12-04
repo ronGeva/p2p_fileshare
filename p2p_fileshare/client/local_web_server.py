@@ -22,15 +22,20 @@ def search_file(filename):
     return response
 
 
-@app.route('/share/<file_path>')
-def share_file(file_path):
-    files_manager.share_file(file_path)
+@app.route('/share')
+def share_file():
+    file_path = request.args.get('local_path')
+    try:
+        files_manager.share_file(file_path)
+    except Exception as e:
+        return {"success": False, "error": e.args}
+    return {"success": True}
 
 
 @app.route('/download')
 def download_file():
-    unique_id = request.args.get('unique_id', None)
-    local_path = request.args.get('local_path', None)
+    unique_id = request.args.get('unique_id')
+    local_path = request.args.get('local_path')
     files_manager.download_file(unique_id, local_path)
 
 

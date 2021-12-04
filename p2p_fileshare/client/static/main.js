@@ -50,10 +50,29 @@ function listDownloads() {
 }
 
 function removeDownload(downloadID) {
-    let request = new XMLHttpRequest()
+    let request = new XMLHttpRequest();
     request.open("GET", "/remove-download/" + downloadID, false);
     request.send(null);
     listDownloads();
 }
 
+function newShare() {
+    const local_path = prompt("Enter file path:");
+    let request = new XMLHttpRequest();
+    request.open("GET", "/share?local_path=" + local_path, false);
+    request.send(null);
+    let responseJSON = JSON.parse(request.responseText);
+    if (!responseJSON["success"])
+        window.alert(responseJSON["error"]);
+}
+
+function listShares() {
+    // TODO: implement
+}
+
+function stopSharing() {
+    // TODO: implement
+}
+
 listDownloads();
+listShares();
