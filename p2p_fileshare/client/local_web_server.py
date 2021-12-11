@@ -1,3 +1,10 @@
+"""
+This module serves as a gateway for the web page into the application.
+Clients should start this local web server and then use the application through the web interface (by accessing
+localhost:5050 in their browser). All information transfers between the web page and the client application itself
+are done via REST API which is implemented in this module.
+"""
+
 import sys
 from typing import Optional
 from flask import Flask, request, render_template
