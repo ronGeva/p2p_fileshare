@@ -24,7 +24,6 @@ class ClientChannel(object):
     def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable):
         self._channel = client_channel
         self._db = db
-        self._closed = False # TODO: check if needed
         self._client_id = None
         self._thread = Thread(target=self.__start)
         self._thread.start()
