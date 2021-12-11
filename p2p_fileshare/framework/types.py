@@ -14,19 +14,24 @@ class FileOrigin(object):
         self.address = address
 
 
+class SharingClientInfo(object):
+    def __init__(self, unique_id: str, sockname: tuple[str, int]):
+        self.unique_id = unique_id
+        self.ip, self.port = sockname
+
+    def __eq__(self, other):
+        if isinstance(other, SharingClientInfo):
+            return self.unique_id == other.unique_id and self.ip == other.ip and self.port == other.port
+        return False
+
+
 class SharedFile(object):
-    def __init__(self, unique_id: str, name: str, modification_time: int, size: int, origins: list):
+    def __init__(self, unique_id: str, name: str, modification_time: int, size: int, origins: list[SharingClientInfo]):
         self.unique_id = unique_id
         self.name = name
         self.modification_time = modification_time
         self.size = size
         self.origins = origins
-
-
-class SharingClientInfo(object):
-    def __init__(self, unique_id: str, sockname: tuple[str, int]):
-        self.unique_id = unique_id
-        self.ip, self.port = sockname
 
 
 class SharedFileInfo(object):

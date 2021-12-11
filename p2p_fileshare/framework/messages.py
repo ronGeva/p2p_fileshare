@@ -171,7 +171,6 @@ class ShareFileMessage(Message):
     def deserialize(cls, data):
         file_message, file_msg_len = FileMessage.deserialize(data[4:])
         shared_file = file_message.file
-        port = unpack("H", data[4 + file_msg_len: 6 + file_msg_len])[0]
         return ShareFileMessage(shared_file)
 
     def serialize(self):
