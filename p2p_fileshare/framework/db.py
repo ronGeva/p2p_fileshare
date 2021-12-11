@@ -43,7 +43,6 @@ def db_func(func):
 
 
 class AbstractDBManager(ABC):
-    # TODO: patch sql injections all over this class
     DEFAULT_DB_PATH = "server_db.db"
 
     def __init__(self, db_path=None):

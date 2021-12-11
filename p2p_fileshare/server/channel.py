@@ -65,7 +65,7 @@ class ClientChannel(object):
             unique_id = msg.unique_id
             logger.debug(f"new client unique id is {unique_id}")
             if unique_id == msg.NO_ID_MAGIC:
-                unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()  # TODO: implement this better
+                unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()
                 self._db.add_new_client(unique_id)
                 self._client_id = unique_id
                 return ClientIdMessage(unique_id)
