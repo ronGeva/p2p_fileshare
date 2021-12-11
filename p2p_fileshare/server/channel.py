@@ -39,7 +39,7 @@ class ClientChannel(object):
         while not self._channel._is_socket_closed:
             rlist, _, _ = select([self._channel], [], [], 0)
             if rlist:
-                msg = self._channel.recv_message()  # TODO: make sure an entire message was received
+                msg = self._channel.recv_message()
                 # TODO: perform actions with the command
                 logger.debug(f"received message: {msg}")
                 response = self._do_action(msg)
