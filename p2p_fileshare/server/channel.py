@@ -10,7 +10,7 @@ from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
     ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \
-    RemoveShareMessage
+    RemoveShareMessage, SharePortMessage
 from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
 from typing import Callable
 import time
@@ -55,8 +55,9 @@ class ClientChannel(object):
         if isinstance(msg, SearchFileMessage):
             matching_files = self._db.search_file(msg.name)
             return FileListMessage(matching_files)
-        if isinstance(msg, ShareFileMessage):
+        if isinstance(msg, SharePortMessage):
             self._client_share_port = msg.share_port
+        if isinstance(msg, ShareFileMessage):
             if self._db.new_share(msg.file, self._client_id):
                 return GeneralSuccessMessage('File shared successfully!')
             return GeneralErrorMessage('File is already shared!')

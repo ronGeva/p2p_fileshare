@@ -20,6 +20,7 @@ SHARING_INFO_RESPONSE_MESSAGE_TYPE = 7
 START_FILE_TRANSFER_MESSAGE_TYPE = 8
 CHUNK_DATA_RESPONSE_MESSAGE_TYPE = 9
 REMOVE_SHARE_MESSAGE_TYPE = 10
+SHARE_PORT_MESSAGE_TYPE = 11
 
 
 def get_message_type_object(message_type):
@@ -33,7 +34,8 @@ def get_message_type_object(message_type):
                      CHUNK_DATA_RESPONSE_MESSAGE_TYPE: ChunkDataResponseMessage,
                      GENERAL_SUCESS_MESSAGE_TYPE: GeneralSuccessMessage,
                      GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage,
-                     REMOVE_SHARE_MESSAGE_TYPE: RemoveShareMessage}
+                     REMOVE_SHARE_MESSAGE_TYPE: RemoveShareMessage,
+                     SHARE_PORT_MESSAGE_TYPE: SharePortMessage}
     return message_types.get(message_type, None)
 
 
@@ -162,20 +164,19 @@ class SearchFileMessage(Message):
 
 
 class ShareFileMessage(Message):
-    def __init__(self, shared_file: SharedFile, share_port: int):
+    def __init__(self, shared_file: SharedFile):
         self.file = shared_file
-        self.share_port = share_port
 
     @classmethod
     def deserialize(cls, data):
         file_message, file_msg_len = FileMessage.deserialize(data[4:])
         shared_file = file_message.file
         port = unpack("H", data[4 + file_msg_len: 6 + file_msg_len])[0]
-        return ShareFileMessage(shared_file, port)
+        return ShareFileMessage(shared_file)
 
     def serialize(self):
         file_message = FileMessage(self.file)
-        return pack("I", self.type()) + file_message.serialize() + pack("H", self.share_port)
+        return pack("I", self.type()) + file_message.serialize()
 
     @classmethod
     def type(cls):
@@ -357,3 +358,23 @@ class RemoveShareMessage(Message):
     @classmethod
     def type(cls):
         return REMOVE_SHARE_MESSAGE_TYPE
+
+
+class SharePortMessage(Message):
+    """
+    This message can be used to notify the server of the client's sharing port.
+    It should be sent when a client that shares files connects to the server (so that these files can be downloaded).
+    """
+    def __init__(self, share_port: int):
+        self.share_port = share_port
+
+    @classmethod
+    def deserialize(cls, data):
+        return SharePortMessage(unpack("H", data[4: 6])[0])
+
+    def serialize(self):
+        return pack("I", self.type()) + pack("H", self.share_port)
+
+    @classmethod
+    def type(cls):
+        return SHARE_PORT_MESSAGE_TYPE
