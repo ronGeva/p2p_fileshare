@@ -77,6 +77,12 @@ class DBManager(AbstractDBManager):
         if not self._does_client_exist(cursor, unique_id):
             cursor.execute(f"INSERT INTO origins values ('{unique_id}')")
 
+    @staticmethod
+    def _does_anyone_share_file(cursor: sqlite3.Cursor, file_unique_id: str) -> bool:
+        cursor.execute(f"select * from shares where file='{file_unique_id}'")
+        result = cursor.fetchall()
+        return len(result) > 0
+
     @db_func
     def remove_share(self, cursor: sqlite3.Cursor, file_unique_id: str, origin: str):
         """
@@ -86,6 +92,9 @@ class DBManager(AbstractDBManager):
         if not self._is_file_already_shared(cursor, file_unique_id, origin):
             return False
         cursor.execute(f"delete from shares where file='{file_unique_id}' and origin='{origin}'")
+        if not self._does_anyone_share_file(cursor, file_unique_id):
+            # No client is sharing the file, remove it from files table
+            cursor.execute(f"delete from files where unique_id='{file_unique_id}'")
         return True
 
     @db_func

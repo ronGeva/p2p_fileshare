@@ -2,7 +2,7 @@ from distutils.core import setup
 from setuptools import find_packages
 
 
-DEPENDENCIES = ['filelock']
+DEPENDENCIES = ['filelock', 'flask']
 
 
 setup(name='p2p_fileshare',
