@@ -44,11 +44,14 @@ def perform_command(user_input: str, files_manager: FilesManager):
         files_manager.share_file(file_path)
         # TODO: allow this call to raise exceptions, if they're not fatal catch them here and print them nicely
     elif user_input.startswith("list-downloads"):
-        downloads_status = files_manager.list_downloads()
-        for status in downloads_status:
-            print(status)
+        downloaders = files_manager.list_downloads()
+        for fd_id in range(len(downloaders)):
+            if downloaders[fd_id].is_done():
+                print(f"{fd_id}: Done")  # TODO: handle failed downloads
+            else:
+                print(f"{fd_id}: In progress")
     elif user_input.startswith("remove-download "):
-        downloader_id = user_input.split(" ")[1]
+        downloader_id = int(user_input.split(" ")[1])
         files_manager.remove_download(downloader_id)
     elif user_input.startswith("exit"):
         return True

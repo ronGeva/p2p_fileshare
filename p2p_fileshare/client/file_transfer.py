@@ -28,6 +28,14 @@ class FileDownloader(object):
         self._file_object = FileObject(self._local_path, self._file_info)
         self._thread.start()
 
+    @property
+    def local_path(self):
+        return self._local_path
+
+    @property
+    def file_info(self):
+        return self._file_info
+
     def _check_chunk_downloaders(self):
         downloaders_to_remove = []
         for chunk_downloader in self._chunk_downloaders:

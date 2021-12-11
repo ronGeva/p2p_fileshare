@@ -5,7 +5,7 @@ import logging
 
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
-    SharingInfoRequestMessage, SharingInfoResponseMessage
+    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage
 from p2p_fileshare.framework.types import SharedFile
 from file_share import FileShareServer
 from db_manager import DBManager
@@ -25,7 +25,7 @@ class FilesManager(object):
         self._file_share_server = None
         self._file_share_thread = None
         self.__initialize_file_share_server()
-        self.downloaders = {}
+        self.downloaders = []
 
     def __start_file_share(self):
         # TODO: pass the sharing port to the server. Right now after stopping the app and starting it back on again
@@ -91,21 +91,22 @@ class FilesManager(object):
                 logger.debug(f"Origin: {sc.ip}:{sc.port}")
 
             file_downloader = FileDownloader(shared_file, self._communication_channel, local_path)
-            self.downloaders[unique_id + '-' + local_path] = file_downloader
+            self.downloaders.append(file_downloader)
             logger.debug('FileDownloader started!')
 
-    def list_downloads(self) -> list[str]:
-        downloads_status = []
-        for fd_id in self.downloaders:
-            if self.downloaders[fd_id].is_done():
-                downloads_status.append(f"{fd_id}: Done")  # TODO: handle failed downloads
-            else:
-                downloads_status.append(f"{fd_id}: In progress")
-        return downloads_status
+    def list_downloads(self) -> list[FileDownloader]:
+        return self.downloaders
 
-    def remove_download(self, downloader_id: str):
-        if downloader_id not in self.downloaders:
+    def remove_download(self, downloader_id: int):
+        if not (0 <= downloader_id < len(self.downloaders)):
             logger.warning('Unknown downloader')
         else:
             fd = self.downloaders.pop(downloader_id)
             fd.stop()
+
+    def list_shares(self):
+        return self._local_db.list_shares()
+
+    def remove_share(self, unique_id: str):
+        self._communication_channel.send_message(RemoveShareMessage(unique_id))
+        self._local_db.remove_share(unique_id)

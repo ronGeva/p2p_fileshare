@@ -29,3 +29,19 @@ class DBManager(AbstractDBManager):
     @db_func
     def add_share(self, cursor: sqlite3.Cursor, unique_id: str, file_path: str):
         cursor.execute(f"insert into files values ('{file_path}', '{unique_id}')")
+
+    @db_func
+    def list_shares(self, cursor: sqlite3.Cursor):
+        cursor.execute(f"select * from files")
+        return cursor.fetchall()
+
+    def _is_file_shared(self, cursor: sqlite3.Cursor, unique_id: str) -> bool:
+        cursor.execute(f"select * from files where unique_id='{unique_id}'")
+        result = cursor.fetchall()
+        return len(result) > 0
+
+    @db_func
+    def remove_share(self, cursor: sqlite3.Cursor, unique_id: str):
+        if not self._is_file_shared(cursor, unique_id):
+            raise ValueError(f"File with unique ID {unique_id} isn't shared by the client!")
+        cursor.execute(f"delete from files where unique_id='{unique_id}'")

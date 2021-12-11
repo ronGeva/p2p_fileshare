@@ -55,6 +55,7 @@ class Channel(object):
                 if len(new_data) == 0:
                     logger.debug('Got 0 bytes from socket, socket is closed')
                     self._is_socket_closed = True
+                    # TODO: once this throws the client is stuck in an exception loop. FIX it.
                     raise SocketClosedException()
                 received_data += new_data
         return received_data

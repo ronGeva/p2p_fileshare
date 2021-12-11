@@ -19,6 +19,7 @@ SHARING_INFO_REQUEST_MESSAGE_TYPE = 6
 SHARING_INFO_RESPONSE_MESSAGE_TYPE = 7
 START_FILE_TRANSFER_MESSAGE_TYPE = 8
 CHUNK_DATA_RESPONSE_MESSAGE_TYPE = 9
+REMOVE_SHARE_MESSAGE_TYPE = 10
 
 
 def get_message_type_object(message_type):
@@ -31,7 +32,8 @@ def get_message_type_object(message_type):
                      START_FILE_TRANSFER_MESSAGE_TYPE: StartFileTransferMessage,
                      CHUNK_DATA_RESPONSE_MESSAGE_TYPE: ChunkDataResponseMessage,
                      GENERAL_SUCESS_MESSAGE_TYPE: GeneralSuccessMessage,
-                     GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage}
+                     GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage,
+                     REMOVE_SHARE_MESSAGE_TYPE: RemoveShareMessage}
     return message_types.get(message_type, None)
 
 
@@ -334,3 +336,24 @@ class ChunkDataResponseMessage(Message):
     @classmethod
     def type(cls):
         return CHUNK_DATA_RESPONSE_MESSAGE_TYPE
+
+
+class RemoveShareMessage(Message):
+    """
+    This message is used by the client to let the server know it is no longer sharing one of its files.
+    """
+    def __init__(self, unique_id: str):
+        self.unique_id = unique_id
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        unique_id = data[4: 4 + UNIQUE_ID_LENGTH].decode("utf-8")
+        return RemoveShareMessage(unique_id)
+
+    def serialize(self):
+        unique_id_data = self.unique_id.encode("utf-8")
+        return pack("I", self.type()) + unique_id_data
+
+    @classmethod
+    def type(cls):
+        return REMOVE_SHARE_MESSAGE_TYPE

@@ -9,7 +9,8 @@ from logging import getLogger
 from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
-    ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage
+    ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \
+    RemoveShareMessage
 from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
 from typing import Callable
 import time
@@ -82,6 +83,11 @@ class ClientChannel(object):
                                          for current_client in current_clients if current_client[0] in sharing_clients]
             shared_file.origins = connected_sharing_clients
             return SharingInfoResponseMessage(shared_file)
+        if isinstance(msg, RemoveShareMessage):
+            if self._db.remove_share(msg.unique_id, self._client_id):
+                return GeneralSuccessMessage('Share was deleted successfully!')
+            else:
+                return GeneralErrorMessage('Failed to delete share: No such share was found!')
 
         return None
 
