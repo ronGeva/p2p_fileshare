@@ -40,7 +40,6 @@ class ClientChannel(object):
             rlist, _, _ = select([self._channel], [], [], 0)
             if rlist:
                 msg = self._channel.recv_message()
-                # TODO: perform actions with the command
                 logger.debug(f"received message: {msg}")
                 response = self._do_action(msg)
                 if response is not None:
