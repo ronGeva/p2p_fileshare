@@ -23,9 +23,12 @@ Enter a command, one of the following:
 
 
 def initialize_communication_channel(args):
+    assert len(args) >= 3, "Expected at least 2 arguments (hostname, port)"
+    assert args[2].isdigit() and 1 <= int(args[2]) < pow(2, 16), \
+        "Second argument must be an integer representing a port! (1 to 2^16-1), instead got {}".format(args[2])
     sock = socket()
     server_address = (args[1], int(args[2]))
-    sock.connect(server_address)  # TODO: validate args
+    sock.connect(server_address)
     return Channel(sock)
 
 
