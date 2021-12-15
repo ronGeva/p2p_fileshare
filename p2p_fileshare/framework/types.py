@@ -82,6 +82,10 @@ class FileObject(object):
             self._chunk_num = ceil(self._files_data['size'] / self.CHUNK_SIZE)
         return self._chunk_num
 
+    @property
+    def downloaded_chunks(self):
+        return self._downloaded_chunks
+
     def _get_file_data(self):
         file_stats = os.stat(self._file_path)
         self._files_data['name'] = os.path.basename(self._file_path)

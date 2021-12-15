@@ -1,16 +1,18 @@
 function searchFile() {
     const filename = document.getElementById("file_search").value;
-    let request = new XMLHttpRequest()
+    let request = new XMLHttpRequest();
     request.open("GET", "/search/" + filename, false);
     request.send(null);
     let responseJSON = JSON.parse(request.responseText);
+    if (!responseJSON["success"])
+        window.alert(responseJSON["error"]);
     let files = responseJSON["files"];
     let searchResultDiv = document.getElementById("search-results");
     let searchResultContent = "";
     for(let i = 0; i < files.length; i++) {
         searchResultContent += files[i]["description"] +
-            "<input type='button' value='download' onclick='downloadFile(\"" + files[i]["unique_id"] + "\")'>" +
-            "<br/>";
+            "<input type='button' value='download' class=\"btn btn-success\" onclick='downloadFile(\""
+            + files[i]["unique_id"] + "\")'>" + "<br/>";
     }
     searchResultDiv.innerHTML = searchResultContent;
 }
@@ -34,17 +36,21 @@ function listDownloads() {
     let isThereADownloadInProgress = false;
     for(let i = 0; i < downloads.length; i++) {
         let disabledAttribute = "";
-        let failedString = "";
-        if (downloads[i]["done"])
+        let status = "";
+        if (downloads[i]["done"]) {
             disabledAttribute += "disabled";
-        else
+            status = "<b class=\"text-success\">FINISHED</b>";
+        }
+        else {
             isThereADownloadInProgress = true; // found at least one download in progress
+            status = downloads[i]["progress"];
+        }
         if (downloads[i]["failed"])
-            failedString = "<b>FAILED</b>";
+            status = "<b class=\"text-danger\">FAILED</b>";
 
         currentDownloadsContent += downloads[i]["name"] + " -> " + downloads[i]["local_path"] +
-            "<input type='button' value='stop' onclick='removeDownload(" + i + ")'" +
-            disabledAttribute + ">" + failedString + "<br/>";
+            "<input type='button' value='stop' class=\"btn btn-warning\" onclick='removeDownload(" + i + ")'" +
+            disabledAttribute + ">" + status + "<br/>";
     }
     currentDownloadsDiv.innerHTML = currentDownloadsContent;
     if (isThereADownloadInProgress)
@@ -84,7 +90,8 @@ function listShares() {
         const shares = responseJSON["shares"];
         for (let i = 0; i < shares.length; i++) {
             currentSharesContent += "Local path: " + shares[i]["local_path"] +
-                "<input type='button' value='stop sharing' onclick='stopSharing(\"" + shares[i]["unique_id"] + "\")'>" +
+                "<input type='button' class=\"btn btn-warning\" value='stop sharing' " +
+                "onclick='stopSharing(\"" + shares[i]["unique_id"] + "\")'>" +
                 "<br/>";
         }
     }

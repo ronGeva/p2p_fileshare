@@ -48,11 +48,7 @@ def search_file(filename):
 @wrap_response
 def share_file():
     file_path = request.args.get('local_path')
-    try:
-        files_manager.share_file(file_path)
-    except Exception as e:
-        return {"success": False, "error": e.args}
-    return {"success": True}
+    files_manager.share_file(file_path)
 
 
 @app.route('/download')
@@ -72,6 +68,7 @@ def list_downloads():
         response["downloads"].append({
             "local_path": downloader.local_path,
             "name": downloader.file_info.name,
+            "progress": "{}%".format(downloader.progress),
             "done": downloader.is_done(),
             "failed": downloader.failed
         })
