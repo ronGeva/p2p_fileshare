@@ -5,6 +5,10 @@
     position: absolute;
 }
 
+.inner_panel_div {
+    margin-left: 2%;
+}
+
 #panel1 {
     margin-left: 0;
 }

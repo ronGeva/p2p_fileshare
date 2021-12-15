@@ -4,28 +4,37 @@
     <meta charset="UTF-8">
     <title>p2p fileshare</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='bootstrap/css/bootstrap.min.css') }}">
 </head>
 <body>
 <div class="panel-div" id="panel1">
-    <h2>Current Downloads Status</h2> </br>
-    <div id="current-downloads">
-        <!-- will be written by script -->
+    <div class="inner_panel_div">
+        <h2>Current Downloads Status</h2> </br>
+        <div id="current-downloads">
+            <!-- will be written by script -->
+        </div>
     </div>
 </div>
 <div class="panel-div" id="panel2">
-    search: <input type="text" id="file_search"> <input type="button" value="search" onclick="searchFile()"> <br/>
-    <div id="search-results">
-        <!-- will be written by script -->
+    <div class="inner_panel_div">
+        <h2>Search files</h2> <br/>
+        <input type="text" id="file_search"> <input type="button" value="search" onclick="searchFile()"> <br/>
+        <div id="search-results">
+            <!-- will be written by script -->
+        </div>
     </div>
 </div>
 <div class="panel-div" id="panel3">
-    <h2>Current Shares</h2> <br/>
-    <input type="button" value="Add new share" onclick="newShare()">
-    <div id="shares-div">
-        <!-- will be written by script -->
+    <div class="inner_panel_div">
+        <h2>Current Shares</h2> <br/>
+        <input type="button" value="Add new share" onclick="newShare()">
+        <div id="shares-div">
+            <!-- will be written by script -->
+        </div>
     </div>
 </div>
 
 <script src="{{ url_for('static', filename='main.js') }}"></script>
+<script src="{{ url_for('static', filename='bootstrap/js/bootstrap.min.js') }}"></script>
 </body>
 </html>
