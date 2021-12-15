@@ -103,7 +103,7 @@ class FileDownloader(object):
 
     @property
     def failed(self):
-        # If the stop event was set adn the file wasn't fully downloaded we can determine the download failed
+        # If the stop event was set and the file wasn't fully downloaded we can determine the download failed
         return self._stop_event.is_set() and self._file_object.has_empty_chunks()
 
 
