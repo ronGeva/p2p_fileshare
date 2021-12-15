@@ -9,7 +9,7 @@ from select import select
 
 
 logger = logging.getLogger(__file__)
-MAX_PENDING_CLIENTS = 5  # TODO: make this configurable
+MAX_PENDING_CLIENTS = 5
 
 
 class Server(ABC):
