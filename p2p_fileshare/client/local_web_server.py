@@ -48,11 +48,7 @@ def search_file(filename):
 @wrap_response
 def share_file():
     file_path = request.args.get('local_path')
-    try:
-        files_manager.share_file(file_path)
-    except Exception as e:
-        return {"success": False, "error": e.args}
-    return {"success": True}
+    files_manager.share_file(file_path)
 
 
 @app.route('/download')
