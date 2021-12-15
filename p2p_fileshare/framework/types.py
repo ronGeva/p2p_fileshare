@@ -1,7 +1,6 @@
 """
 A module containing different types used by the application
 """
-# TODO: consider using NamedTuple for this
 from filelock import FileLock
 from typing import Optional
 from math import ceil
