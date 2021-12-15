@@ -16,9 +16,12 @@
     </div>
 </div>
 <div class="panel-div" id="panel2">
-    <div class="inner_panel_div">
+    <div class="inner_panel_div" id="search_div">
         <h2>Search files</h2> <br/>
-        <input type="text" id="file_search"> <input type="button" value="search" onclick="searchFile()"> <br/>
+        <div class="input-group mb-3">
+            <input type="text" id="file_search" class="form-control">
+            <input type="button" class="btn btn-primary" value="search" onclick="searchFile()">
+        </div> <br/>
         <div id="search-results">
             <!-- will be written by script -->
         </div>
@@ -27,7 +30,7 @@
 <div class="panel-div" id="panel3">
     <div class="inner_panel_div">
         <h2>Current Shares</h2> <br/>
-        <input type="button" value="Add new share" onclick="newShare()">
+        <input type="button" value="Add new share" class="btn btn-primary" onclick="newShare()">
         <div id="shares-div">
             <!-- will be written by script -->
         </div>

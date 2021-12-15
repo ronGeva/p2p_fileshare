@@ -3,10 +3,15 @@
     height: 100%;
     border-style: solid;
     position: absolute;
+    background-color: azure;
 }
 
 .inner_panel_div {
     margin-left: 2%;
+}
+
+#search_div {
+    width: 80%;
 }
 
 #panel1 {
