@@ -33,7 +33,6 @@ def initialize_communication_channel(args):
 
 
 def perform_command(user_input: str, files_manager: FilesManager):
-    ## TODO - change ot arg parse for each option
     if user_input.startswith("search "):
         filename = user_input.split(" ")[1]
         search_result = files_manager.search_file(filename)
@@ -90,7 +89,6 @@ def resolve_id(communication_channel: Channel):
 
 
 def main(args):
-    # TODO: optionally start GUI
     communication_channel = initialize_communication_channel(args)
     resolve_id(communication_channel)
     files_manager = FilesManager(communication_channel)

@@ -102,7 +102,7 @@ class FileMessage(Message):
         name = data[4:4 + name_len].decode("utf-8")
         modification_time, size = struct.unpack("II", data[4 + name_len:12 + name_len])
         unique_id = data[12 + name_len: 44 + name_len].decode('utf-8')  # unique id is 32 bytes long
-        next_msg_offset = 44 + name_len  # TODO: Refactor this to be better - maybe use protobuf?
+        next_msg_offset = 44 + name_len
         return FileMessage(SharedFile(unique_id, name, modification_time, size, [])), next_msg_offset
 
     def serialize(self):
