@@ -5,10 +5,12 @@ from server import MetadataServer
 
 
 def main(args):
-    # TODO: parse args
+    port = 1337
+    if len(args) >= 2 and args[1].isdigit():
+        port = int(args[1])
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)  # TODO: make this configurable
-    server = MetadataServer(port=1337)
+    logging.getLogger().setLevel(logging.DEBUG)
+    server = MetadataServer(port=port)
     server.main_loop()
 
 

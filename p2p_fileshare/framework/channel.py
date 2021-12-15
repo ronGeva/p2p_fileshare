@@ -24,7 +24,7 @@ class StopEventSignaledException(Exception):
 class Channel(object):
     def __init__(self, endpoint_socket: socket, stop_event: Event = None):
         self._socket = endpoint_socket
-        self._is_socket_closed = False # TODO: Add try-except on SocketClosedException on needed function to change flag
+        self._is_socket_closed = False
         if stop_event is None:
             stop_event = Event()
         self._stop_event = stop_event

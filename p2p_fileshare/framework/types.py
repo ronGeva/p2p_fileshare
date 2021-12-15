@@ -1,7 +1,6 @@
 """
 A module containing different types used by the application
 """
-# TODO: consider using NamedTuple for this
 from filelock import FileLock
 from typing import Optional
 from math import ceil
@@ -14,19 +13,24 @@ class FileOrigin(object):
         self.address = address
 
 
+class SharingClientInfo(object):
+    def __init__(self, unique_id: str, sockname: tuple[str, int]):
+        self.unique_id = unique_id
+        self.ip, self.port = sockname
+
+    def __eq__(self, other):
+        if isinstance(other, SharingClientInfo):
+            return self.unique_id == other.unique_id and self.ip == other.ip and self.port == other.port
+        return False
+
+
 class SharedFile(object):
-    def __init__(self, unique_id: str, name: str, modification_time: int, size: int, origins: list):
+    def __init__(self, unique_id: str, name: str, modification_time: int, size: int, origins: list[SharingClientInfo]):
         self.unique_id = unique_id
         self.name = name
         self.modification_time = modification_time
         self.size = size
         self.origins = origins
-
-
-class SharingClientInfo(object):
-    def __init__(self, unique_id: str, sockname: tuple[str, int]):
-        self.unique_id = unique_id
-        self.ip, self.port = sockname
 
 
 class SharedFileInfo(object):
@@ -43,17 +47,19 @@ class FileObject(object):
     """
     CHUNK_SIZE = 1024 * 1024 * 3  # 3 MB
 
-    def __init__(self, file_path: str, files_data: SharedFile = None, new_file: bool = False):
+    def __init__(self, file_path: str, files_data: SharedFile = None, is_local: bool = False):
         self._file_path = file_path
         self._files_data = {}
         self._chunk_num = None
         self._chunks = {}
         self._downloaded_chunks = 0  # amount of chunks already present in the file
-        if new_file:
+        if is_local:
             self._get_file_data()
         elif files_data is not None:
             self._get_data_from_shared_file(files_data)
             self._write_empty_file()
+        else:
+            raise ValueError('Bad usage: file is not local and file data was not supplied!')
 
     def _write_empty_file(self):
         """
@@ -81,7 +87,6 @@ class FileObject(object):
         self._files_data['name'] = os.path.basename(self._file_path)
         self._files_data['modification_time'] = int(file_stats.st_mtime)
         self._files_data['size'] = file_stats.st_size
-        # TODO: retrieve unique ID from client's DB instead of recalculating it
         self._files_data['unique_id'] = self.get_file_hash()
 
     def _get_data_from_shared_file(self, files_data: SharedFile):

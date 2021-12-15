@@ -5,7 +5,7 @@ import logging
 
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
-    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage
+    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage
 from p2p_fileshare.framework.types import SharedFile
 from file_share import FileShareServer
 from db_manager import DBManager
@@ -28,11 +28,11 @@ class FilesManager(object):
         self.downloaders = []
 
     def __start_file_share(self):
-        # TODO: pass the sharing port to the server. Right now after stopping the app and starting it back on again
-        # the server won't know our sharing port until we share a new file
         self._file_share_server = FileShareServer(local_db=self._local_db)
         self._file_share_thread = Thread(target=self._file_share_server.main_loop)
         self._file_share_thread.start()
+        # let the server know our share port so that other clients can communicate with us
+        self._communication_channel.send_message(SharePortMessage(self._file_share_server.sharing_port))
 
     def __initialize_file_share_server(self):
         if self._local_db.is_there_any_shared_file():
@@ -76,7 +76,7 @@ class FilesManager(object):
         if self._file_share_server is None:
             self.__start_file_share()
 
-        shared_file_message = ShareFileMessage(shared_file, self._file_share_server.sharing_port)
+        shared_file_message = ShareFileMessage(shared_file)
         self._communication_channel.send_message(shared_file_message)
 
     def download_file(self, unique_id: str, local_path: str):

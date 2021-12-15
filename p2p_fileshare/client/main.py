@@ -23,14 +23,16 @@ Enter a command, one of the following:
 
 
 def initialize_communication_channel(args):
+    assert len(args) >= 3, "Expected at least 2 arguments (hostname, port)"
+    assert args[2].isdigit() and 1 <= int(args[2]) < pow(2, 16), \
+        "Second argument must be an integer representing a port! (1 to 2^16-1), instead got {}".format(args[2])
     sock = socket()
     server_address = (args[1], int(args[2]))
-    sock.connect(server_address)  # TODO: validate args
+    sock.connect(server_address)
     return Channel(sock)
 
 
 def perform_command(user_input: str, files_manager: FilesManager):
-    ## TODO - change ot arg parse for each option
     if user_input.startswith("search "):
         filename = user_input.split(" ")[1]
         search_result = files_manager.search_file(filename)
@@ -42,12 +44,11 @@ def perform_command(user_input: str, files_manager: FilesManager):
     elif user_input.startswith("share "):
         file_path = user_input.split(" ")[1]
         files_manager.share_file(file_path)
-        # TODO: allow this call to raise exceptions, if they're not fatal catch them here and print them nicely
     elif user_input.startswith("list-downloads"):
         downloaders = files_manager.list_downloads()
         for fd_id in range(len(downloaders)):
             if downloaders[fd_id].is_done():
-                print(f"{fd_id}: Done")  # TODO: handle failed downloads
+                print(f"{fd_id}: Done")
             else:
                 print(f"{fd_id}: In progress")
     elif user_input.startswith("remove-download "):
@@ -88,7 +89,6 @@ def resolve_id(communication_channel: Channel):
 
 
 def main(args):
-    # TODO: optionally start GUI
     communication_channel = initialize_communication_channel(args)
     resolve_id(communication_channel)
     files_manager = FilesManager(communication_channel)

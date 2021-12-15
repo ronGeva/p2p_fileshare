@@ -10,7 +10,7 @@ from db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
     ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \
-    RemoveShareMessage
+    RemoveShareMessage, SharePortMessage
 from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
 from typing import Callable
 import time
@@ -24,7 +24,6 @@ class ClientChannel(object):
     def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable):
         self._channel = client_channel
         self._db = db
-        self._closed = False # TODO: check if needed
         self._client_id = None
         self._thread = Thread(target=self.__start)
         self._thread.start()
@@ -39,8 +38,7 @@ class ClientChannel(object):
         while not self._channel._is_socket_closed:
             rlist, _, _ = select([self._channel], [], [], 0)
             if rlist:
-                msg = self._channel.recv_message()  # TODO: make sure an entire message was received
-                # TODO: perform actions with the command
+                msg = self._channel.recv_message()
                 logger.debug(f"received message: {msg}")
                 response = self._do_action(msg)
                 if response is not None:
@@ -55,8 +53,9 @@ class ClientChannel(object):
         if isinstance(msg, SearchFileMessage):
             matching_files = self._db.search_file(msg.name)
             return FileListMessage(matching_files)
-        if isinstance(msg, ShareFileMessage):
+        if isinstance(msg, SharePortMessage):
             self._client_share_port = msg.share_port
+        if isinstance(msg, ShareFileMessage):
             if self._db.new_share(msg.file, self._client_id):
                 return GeneralSuccessMessage('File shared successfully!')
             return GeneralErrorMessage('File is already shared!')
@@ -64,7 +63,7 @@ class ClientChannel(object):
             unique_id = msg.unique_id
             logger.debug(f"new client unique id is {unique_id}")
             if unique_id == msg.NO_ID_MAGIC:
-                unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()  # TODO: implement this better
+                unique_id = hashlib.md5(bytes(str(time.time()), 'utf-8')).hexdigest()
                 self._db.add_new_client(unique_id)
                 self._client_id = unique_id
                 return ClientIdMessage(unique_id)

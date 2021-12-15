@@ -12,7 +12,6 @@ from p2p_fileshare.framework.server import Server
 
 
 logger = logging.getLogger(__file__)
-MAX_PENDING_CLIENTS = 5  # TODO: make this configurable
 
 
 class MetadataServer(Server):

@@ -72,7 +72,8 @@ def list_downloads():
         response["downloads"].append({
             "local_path": downloader.local_path,
             "name": downloader.file_info.name,
-            "done": downloader.is_done()
+            "done": downloader.is_done(),
+            "failed": downloader.failed
         })
     return response
 
