@@ -4,6 +4,8 @@ function searchFile() {
     request.open("GET", "/search/" + filename, false);
     request.send(null);
     let responseJSON = JSON.parse(request.responseText);
+    if (!responseJSON["success"])
+        window.alert(responseJSON["error"]);
     let files = responseJSON["files"];
     let searchResultDiv = document.getElementById("search-results");
     let searchResultContent = "";
