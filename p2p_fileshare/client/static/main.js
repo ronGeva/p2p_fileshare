@@ -34,19 +34,21 @@ function listDownloads() {
     let isThereADownloadInProgress = false;
     for(let i = 0; i < downloads.length; i++) {
         let disabledAttribute = "";
-        let extraString = "";
+        let status = "";
         if (downloads[i]["done"]) {
             disabledAttribute += "disabled";
-            extraString = "<b class=\"text-success\">FINISHED</b>";
+            status = "<b class=\"text-success\">FINISHED</b>";
         }
-        else
+        else {
             isThereADownloadInProgress = true; // found at least one download in progress
+            status = downloads[i]["progress"];
+        }
         if (downloads[i]["failed"])
-            extraString = "<b class=\"text-danger\">FAILED</b>";
+            status = "<b class=\"text-danger\">FAILED</b>";
 
         currentDownloadsContent += downloads[i]["name"] + " -> " + downloads[i]["local_path"] +
             "<input type='button' value='stop' class=\"btn btn-warning\" onclick='removeDownload(" + i + ")'" +
-            disabledAttribute + ">" + extraString + "<br/>";
+            disabledAttribute + ">" + status + "<br/>";
     }
     currentDownloadsDiv.innerHTML = currentDownloadsContent;
     if (isThereADownloadInProgress)

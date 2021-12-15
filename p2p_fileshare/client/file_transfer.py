@@ -29,6 +29,13 @@ class FileDownloader(object):
         self._thread.start()
 
     @property
+    def progress(self) -> int:
+        """
+        Retrieve a number between 0 to 100 representing the percentage of the file successfully downloaded until now.
+        """
+        return int((self._file_object.downloaded_chunks / self._file_object.amount_of_chunks) * 100)
+
+    @property
     def local_path(self):
         return self._local_path
 

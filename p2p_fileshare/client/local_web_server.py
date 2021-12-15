@@ -72,6 +72,7 @@ def list_downloads():
         response["downloads"].append({
             "local_path": downloader.local_path,
             "name": downloader.file_info.name,
+            "progress": "{}%".format(downloader.progress),
             "done": downloader.is_done(),
             "failed": downloader.failed
         })
