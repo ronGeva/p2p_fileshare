@@ -44,6 +44,19 @@ class ClientChannel(object):
                 if response is not None:
                     self._channel.send_message(response)
 
+    def __get_connected_sharing_clients(self, file_unique_id: str) -> list[SharingClientInfo]:
+        """
+        Retrieves all the clients that both share the file and are currently connected.
+        :param file_unique_id: The unique ID of the file.
+        :return: A list of ClientChannel objects.
+        """
+        sharing_clients = self._db.find_sharing_clients(file_unique_id)
+        current_clients = self._get_all_clients_func()
+
+        # filter out current clients which do not share the file
+        return [SharingClientInfo(current_client[0], (current_client[1], current_client[2]))
+                for current_client in current_clients if current_client[0] in sharing_clients]
+
     def _do_action(self, msg: Message):
         """
         Perform an action according to the incoming message and returns an appropriate response message.
@@ -52,6 +65,8 @@ class ClientChannel(object):
         """
         if isinstance(msg, SearchFileMessage):
             matching_files = self._db.search_file(msg.name)
+            matching_files = [matching_file for matching_file in matching_files
+                              if self.__get_connected_sharing_clients(matching_file.unique_id)]
             return FileListMessage(matching_files)
         if isinstance(msg, SharePortMessage):
             self._client_share_port = msg.share_port
@@ -74,12 +89,8 @@ class ClientChannel(object):
             shared_file = self._db.get_shared_file_info(msg.file_unique_id)
             if shared_file is None:
                 return GeneralErrorMessage('Found no files with the unique ID specified!')
-            sharing_clients = self._db.find_sharing_clients(msg.file_unique_id)
-            current_clients = self._get_all_clients_func()
 
-            # filter out current clients which do not share the file
-            connected_sharing_clients = [SharingClientInfo(current_client[0], (current_client[1], current_client[2]))
-                                         for current_client in current_clients if current_client[0] in sharing_clients]
+            connected_sharing_clients = self.__get_connected_sharing_clients(msg.file_unique_id)
             shared_file.origins = connected_sharing_clients
             return SharingInfoResponseMessage(shared_file)
         if isinstance(msg, RemoveShareMessage):
