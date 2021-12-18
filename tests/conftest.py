@@ -1,9 +1,13 @@
-from pytest import fixture
+import os
+
+from pytest import fixture, mark
 from multiprocessing import Process
 from random import randint
 from os import unlink
+from contextlib import contextmanager
 from p2p_fileshare.server.server import MetadataServer
 from p2p_fileshare.client.main import initialize_files_manager
+from p2p_fileshare.client.files_manager import FilesManager
 
 
 DEFAULT_PORT = '1337'
@@ -27,19 +31,31 @@ def metadata_server():
     try:
         yield server
     finally:
-        server_process.terminate()
+        server.stop()
+        server_process.join(2)  # wait 2 seconds for the server to close nicely
+        if server_process.is_alive():
+            server_process.terminate()  # Server didn't stop in time, terminate it
         unlink(random_db_name)  # cleanup our DB
 
 
-@fixture(scope='function')
-def client():
-    command_line = [None, LOCAL_HOST, DEFAULT_PORT, FIRST_USERNAME]
-    files_manager = initialize_files_manager(command_line)
-    return files_manager
+@contextmanager
+def client(username: str) -> FilesManager:
+    try:
+        command_line = [None, LOCAL_HOST, DEFAULT_PORT, username]
+        files_manager = initialize_files_manager(command_line)
+        yield files_manager
+    finally:
+        db_path = FilesManager.generate_db_path(username)
+        os.unlink(db_path)
 
 
 @fixture(scope='function')
-def another_client():
-    command_line = [None, LOCAL_HOST, DEFAULT_PORT, SECOND_USERNAME]
-    files_manager = initialize_files_manager(command_line)
-    return files_manager
+def first_client():
+    with client(FIRST_USERNAME) as c:
+        yield c
+
+
+@fixture(scope='function')
+def second_client():
+    with client(SECOND_USERNAME) as c:
+        yield c

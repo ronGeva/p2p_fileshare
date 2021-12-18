@@ -18,18 +18,18 @@ def closed_temporary_file():
             os.unlink(tf.name)
 
 
-def test_simple_file_transfer(metadata_server: MetadataServer, client: FilesManager, another_client: FilesManager):
+def test_simple_file_transfer(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):
     with closed_temporary_file() as first_client_file:
         first_data = os.urandom(100)
         with open(first_client_file.name, 'wb') as f:
             f.write(first_data)
-        client.share_file(first_client_file.name)
-        res = another_client.search_file(os.path.basename(first_client_file.name))
+        first_client.share_file(first_client_file.name)
+        res = second_client.search_file(os.path.basename(first_client_file.name))
         assert len(res) == 1, "Expected to find only searched file, instead got: {0}".format(res)
         requested_file = res[0]
         with closed_temporary_file() as second_client_file:
-            client.download_file(requested_file.unique_id, second_client_file.name)
-            download = client.list_downloads()[0]
+            first_client.download_file(requested_file.unique_id, second_client_file.name)
+            download = first_client.list_downloads()[0]
             while not download.is_done():
                 continue
             assert not download.failed, "Download failed!"

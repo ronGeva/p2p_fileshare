@@ -22,11 +22,19 @@ logger = logging.getLogger(__name__)
 class FilesManager(object):
     def __init__(self, communication_channel: Channel, username: Optional[str]):
         self._communication_channel = communication_channel
-        self._local_db = DBManager("{}.db".format(username))
-        self._file_share_server = None
+        self._local_db = DBManager(self.generate_db_path(username))
+        self._file_share_server = None  # type: Optional[FileShareServer]
         self._file_share_thread = None
         self.__initialize_file_share_server()
         self.downloaders = []
+
+    def __del__(self):
+        if self._file_share_server is not None:
+            self._file_share_server.stop()
+
+    @staticmethod
+    def generate_db_path(username: str) -> str:
+        return "{}.db".format(username)
 
     def __start_file_share(self):
         self._file_share_server = FileShareServer(local_db=self._local_db)
