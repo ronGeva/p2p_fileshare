@@ -19,6 +19,16 @@ def closed_temporary_file():
 
 
 def test_simple_file_transfer(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):
+    """
+    Test the file transfer works in its simplest form.
+    Steps:
+    1. Create a file with 100 bytes of random data.
+    2. Share the file created in step #1 via client #1.
+    3. Search the file shared in step #2 via client #2.
+    4. Download the file found via client #2.
+    5. Wait for the download initiated in step #4 to finish.
+    6. Assert the file was downloaded successfully.
+    """
     with closed_temporary_file() as first_client_file:
         first_data = os.urandom(100)
         with open(first_client_file.name, 'wb') as f:
