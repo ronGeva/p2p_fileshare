@@ -6,7 +6,7 @@ from p2p_fileshare.framework.server import Server
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject
 from p2p_fileshare.framework.messages import StartFileTransferMessage, ChunkDataResponseMessage
-from db_manager import DBManager
+from p2p_fileshare.client.db_manager import DBManager
 from logging import getLogger
 from threading import Thread
 import socket

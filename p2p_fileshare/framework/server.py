@@ -20,6 +20,7 @@ class Server(ABC):
         self._socket.bind(('0.0.0.0', port))
         self._socket.listen(MAX_PENDING_CLIENTS)
         logger.debug(f"Starting server at address: {self._socket.getsockname()}")
+        self._should_stop = False
 
     @abstractmethod
     def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int]):
@@ -41,9 +42,14 @@ class Server(ABC):
         """
         pass
 
+    def stop(self):
+        self._should_stop = True
+        logger.debug("Server's stop event was set!")
+
     def main_loop(self):
-        while True:
+        while not self._should_stop:
             rlist, _, _ = select([self._socket], [], [], self.WAIT_TIMEOUT)
             if rlist:
                 self._accept_new_client()
             self._remove_old_clients()
+        logger.debug("Server has exited main_loop!")

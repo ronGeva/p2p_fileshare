@@ -6,7 +6,7 @@ All actions in the channel must be made in a thread-safe way to ensure no data c
 from threading import Thread
 from select import select
 from logging import getLogger
-from db_manager import DBManager
+from p2p_fileshare.server.db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
     ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \

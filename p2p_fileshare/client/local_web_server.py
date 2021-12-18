@@ -8,13 +8,12 @@ are done via REST API which is implemented in this module.
 import sys
 from typing import Optional
 from flask import Flask, request, render_template
-from files_manager import FilesManager
+from p2p_fileshare.client.files_manager import FilesManager
 from p2p_fileshare.framework.channel import Channel
-from main import initialize_communication_channel, resolve_id
+from main import initialize_files_manager
 
 
 app = Flask(__name__)
-communication_channel = None  # type: Optional[Channel]
 files_manager = None  # type: Optional[FilesManager]
 
 
@@ -105,14 +104,20 @@ def main_page():
     return render_template('app.html')
 
 
-def main(args):
-    global communication_channel
-    global files_manager
+def get_web_server_port(args):
+    web_port = 5050
+    if len(args) >= 5:
+        web_port = args[4]
+        assert web_port.isdigit()
+        web_port = int(web_port)
+    return web_port
 
-    communication_channel = initialize_communication_channel(args)
-    resolve_id(communication_channel)
-    files_manager = FilesManager(communication_channel)
-    app.run("localhost", 5050, debug=True)
+
+def main(args):
+    global files_manager
+    files_manager = initialize_files_manager(args)
+
+    app.run("localhost", get_web_server_port(args), debug=True)
 
 
 if __name__ == '__main__':
