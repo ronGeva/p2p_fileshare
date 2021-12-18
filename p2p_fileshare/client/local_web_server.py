@@ -8,7 +8,7 @@ are done via REST API which is implemented in this module.
 import sys
 from typing import Optional
 from flask import Flask, request, render_template
-from files_manager import FilesManager
+from p2p_fileshare.client.files_manager import FilesManager
 from p2p_fileshare.framework.channel import Channel
 from main import initialize_communication_channel, resolve_id
 

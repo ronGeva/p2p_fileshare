@@ -5,8 +5,8 @@ communication channels.
 """
 import socket
 import logging
-from channel import ClientChannel
-from db_manager import DBManager
+from p2p_fileshare.server.channel import ClientChannel
+from p2p_fileshare.server.db_manager import DBManager
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.server import Server
 
@@ -15,10 +15,10 @@ logger = logging.getLogger(__file__)
 
 
 class MetadataServer(Server):
-    def __init__(self, port=0):
+    def __init__(self, port=0, db_path=None):
         super().__init__(port)
         self._communication_channels = []
-        self._db = DBManager()
+        self._db = DBManager(db_path)
 
     def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int]):
         new_channel = Channel(client)

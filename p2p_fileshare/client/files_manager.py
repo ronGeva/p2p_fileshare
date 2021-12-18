@@ -7,21 +7,22 @@ from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
     SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage
 from p2p_fileshare.framework.types import SharedFile
-from file_share import FileShareServer
-from db_manager import DBManager
+from p2p_fileshare.client.file_share import FileShareServer
+from p2p_fileshare.client.db_manager import DBManager
+from p2p_fileshare.client.file_transfer import FileDownloader
 from threading import Thread
+from typing import Optional
 import os
 import hashlib
-from file_transfer import FileDownloader
 
 
 logger = logging.getLogger(__name__)
 
 
 class FilesManager(object):
-    def __init__(self, communication_channel: Channel):
+    def __init__(self, communication_channel: Channel, username: Optional[str]):
         self._communication_channel = communication_channel
-        self._local_db = DBManager()
+        self._local_db = DBManager("{}.db".format(username))
         self._file_share_server = None
         self._file_share_thread = None
         self.__initialize_file_share_server()

@@ -3,12 +3,12 @@ import traceback
 from socket import socket
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import ClientIdMessage
-from files_manager import FilesManager
+from p2p_fileshare.client.files_manager import FilesManager
 from os.path import abspath, dirname, join
 from typing import Optional
 
 
-CLIENT_ID_STORAGE = join(dirname(abspath(__file__)), 'CLIENT_ID.dat')
+CLIENT_ID_STORAGE = join(dirname(abspath(__file__)), '{username}_CLIENT_ID.dat')
 ID_RETRIEVAL_TIMEOUT = 60
 
 COMMAND_PROMPT = """
@@ -59,39 +59,52 @@ def perform_command(user_input: str, files_manager: FilesManager):
     return False
 
 
-def get_client_id() -> Optional[str]:
+def client_id_path(username: str):
+    return CLIENT_ID_STORAGE.format(username=username)
+
+
+def get_client_id(username: str) -> Optional[str]:
     """
-    Retrieves the client's unique id from a hard-coded path.
+    Retrieves the client's unique id from a hard-coded path, according to the username.
     If the unique id is not found, returns None
+    :param username: The username of the current user, used to find the appropriate client ID.
     :return string representing the unique id of the client (32 characters long), or None.
     """
     try:
-        with open(CLIENT_ID_STORAGE, 'r') as f:
+        with open(client_id_path(username), 'r') as f:
             return f.read().strip()
     except IOError:
         return None
 
 
-def resolve_id(communication_channel: Channel):
+def resolve_id(communication_channel: Channel, username: str):
     """
     Notifies the server of our current client id, and in case it isn't initialized yet - waits until the server assigns
     us a unique id.
     :param communication_channel: The communication channel with the server.
+    :param username: The username used to represent the current user.
     :return: None.
     """
-    client_id = get_client_id()
+    client_id = get_client_id(username)
     client_id_msg = ClientIdMessage(client_id)
     communication_channel.send_message(client_id_msg)  # notify the server of our current id
     if client_id is None:
         client_id_msg = communication_channel.wait_for_message(ClientIdMessage, timeout=ID_RETRIEVAL_TIMEOUT)
-        with open(CLIENT_ID_STORAGE, 'w') as f:
+        with open(client_id_path(username), 'w') as f:
             f.write(client_id_msg.unique_id)
 
 
-def main(args):
+def initialize_files_manager(args):
     communication_channel = initialize_communication_channel(args)
-    resolve_id(communication_channel)
-    files_manager = FilesManager(communication_channel)
+    username = 'default_user'
+    if len(args) >= 4:
+        username = args[3]
+    resolve_id(communication_channel, username)
+    return FilesManager(communication_channel, username)
+
+
+def main(args):
+    files_manager = initialize_files_manager(args)
     should_exit = False
     while not should_exit:
         try:
