@@ -1,7 +1,6 @@
 import os
 
-from pytest import fixture, mark
-from multiprocessing import Process
+from pytest import fixture
 from random import randint
 from os import unlink
 from contextlib import contextmanager
@@ -25,16 +24,15 @@ def generate_random_name(size: int):
 @fixture(scope='session')
 def metadata_server():
     random_db_name = generate_random_name(5)
+    from threading import Thread
     server = MetadataServer(int(DEFAULT_PORT), db_path=random_db_name)
-    server_process = Process(target=server.main_loop)
-    server_process.start()
+    server_thread = Thread(target=server.main_loop)
+    server_thread.start()
     try:
         yield server
     finally:
         server.stop()
-        server_process.join(2)  # wait 2 seconds for the server to close nicely
-        if server_process.is_alive():
-            server_process.terminate()  # Server didn't stop in time, terminate it
+        server_thread.join(2)  # wait 2 seconds for the server to close nicely
         unlink(random_db_name)  # cleanup our DB
 
 
@@ -49,13 +47,13 @@ def client(username: str) -> FilesManager:
         os.unlink(db_path)
 
 
-@fixture(scope='function')
+@fixture(scope='module')
 def first_client():
     with client(FIRST_USERNAME) as c:
         yield c
 
 
-@fixture(scope='function')
+@fixture(scope='module')
 def second_client():
     with client(SECOND_USERNAME) as c:
         yield c
