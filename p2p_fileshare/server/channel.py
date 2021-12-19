@@ -40,8 +40,10 @@ class ClientChannel(object):
         All logic within this function must be thread safe.
         """
         try:
-            while not self._channel.closed:
-                rlist, _, _ = select([self._channel], [], [], 0)
+            while True:
+                # infinite wait - once the channel is closed the select will be triggered, once we'll attempt to read
+                # an exception will be thrown forcing us to exit.
+                rlist, _, _ = select([self._channel], [], [])
                 if rlist:
                     msg = self._channel.recv_message()
                     logger.debug(f"received message: {msg}")

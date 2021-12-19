@@ -53,11 +53,12 @@ class Channel(object):
         """
         start_time = time.time()
         received_data = b''
-        while len(received_data) != data_len and time.time() - start_time < timeout:
+        remaining_time = timeout - (time.time() - start_time)
+        while len(received_data) != data_len and remaining_time > 0:
             if self._stop_event.is_set():
                 raise StopEventSignaledException()
 
-            rlist, _, _ = select.select([self._socket], [], [], 0)
+            rlist, _, _ = select.select([self._socket], [], [], remaining_time)
             if rlist:
                 new_data = self._socket.recv(data_len-len(received_data))
                 if len(new_data) == 0:
@@ -65,6 +66,7 @@ class Channel(object):
                     self._is_socket_closed = True
                     raise SocketClosedException()
                 received_data += new_data
+            remaining_time = timeout - (time.time() - start_time)
         if len(received_data) == data_len:
             return received_data
         raise TimeoutException
