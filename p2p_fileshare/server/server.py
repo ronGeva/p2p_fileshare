@@ -17,12 +17,12 @@ logger = logging.getLogger(__file__)
 class MetadataServer(Server):
     def __init__(self, port=0, db_path=None):
         super().__init__(port)
-        self._communication_channels = []
         self._db = DBManager(db_path)
 
-    def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int]):
+    def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int], finished_socket: socket.socket):
         new_channel = Channel(client)
-        new_comm_channel = ClientChannel(new_channel, self._db, self.get_all_clients_info)
+        return ClientChannel(new_channel, self._db, self.get_all_clients_info, finished_socket)
+        new_comm_channel = ClientChannel(new_channel, self._db, self.get_all_clients_info, finished_socket)
         self._communication_channels.append(new_comm_channel)
 
     def _remove_old_clients(self):
@@ -38,4 +38,4 @@ class MetadataServer(Server):
             self._communication_channels.remove(item)
 
     def get_all_clients_info(self):
-        return [channel.get_client_connection_info() for channel in self._communication_channels]
+        return [channel.get_client_connection_info() for channel in self._items]
