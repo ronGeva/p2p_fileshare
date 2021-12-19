@@ -2,6 +2,7 @@
 This module is a wrapper for reliable communication with an endpoint.
 """
 import logging
+import time
 
 from p2p_fileshare.framework.messages import Message
 from socket import socket
@@ -13,6 +14,10 @@ import select
 logger = logging.getLogger(__name__)
 
 
+class TimeoutException(Exception):
+    pass
+
+
 class SocketClosedException(Exception):
     pass
 
@@ -22,6 +27,8 @@ class StopEventSignaledException(Exception):
 
 
 class Channel(object):
+    DEFAULT_TIMEOUT = 10
+
     def __init__(self, endpoint_socket: socket, stop_event: Event = None):
         self._socket = endpoint_socket
         self._is_socket_closed = False
@@ -38,14 +45,15 @@ class Channel(object):
         self.send_message(message)
         return self.wait_for_message(message.matching_response_type)
 
-    def _get_data_from_sock(self, data_len):
+    def _get_data_from_sock(self, data_len, timeout: float):
         """
         Reads data from the socket until data_len bytes has been received or until the stop event has been signaled.
         @throws SocketClosedException if the socket is closed during the read operation.
         @throws StopEventSignaledException if the stop event is signaled during the read operation.
         """
+        start_time = time.time()
         received_data = b''
-        while len(received_data) != data_len:
+        while len(received_data) != data_len and time.time() - start_time < timeout:
             if self._stop_event.is_set():
                 raise StopEventSignaledException()
 
@@ -55,10 +63,11 @@ class Channel(object):
                 if len(new_data) == 0:
                     logger.debug('Got 0 bytes from socket, socket is closed')
                     self._is_socket_closed = True
-                    # TODO: once this throws the client is stuck in an exception loop. FIX it.
                     raise SocketClosedException()
                 received_data += new_data
-        return received_data
+        if len(received_data) == data_len:
+            return received_data
+        raise TimeoutException
 
     def send_message(self, message: Message):
         if self._is_socket_closed:
@@ -75,13 +84,14 @@ class Channel(object):
             else:
                 raise e
 
-    def recv_message(self):
+    def recv_message(self, timeout: float = DEFAULT_TIMEOUT):
+        start_time = time.time()
         if self._is_socket_closed:
             raise SocketClosedException()
         try:
-            len_data = self._get_data_from_sock(4)
+            len_data = self._get_data_from_sock(4, timeout)
             msg_len = unpack("I", len_data)[0]
-            msg_data = self._get_data_from_sock(msg_len)
+            msg_data = self._get_data_from_sock(msg_len, timeout - (time.time() - start_time))
             return Message.deserialize(msg_data)
         except Exception as e:
             if self._stop_event.is_set():
@@ -89,12 +99,14 @@ class Channel(object):
             else:
                 raise e
 
-    def wait_for_message(self, expected_msg_type: type, timeout=None):
+    def wait_for_message(self, expected_msg_type: type, timeout: float = DEFAULT_TIMEOUT):
         # TODO: handle error message (so that if something failed the endpoint will know)
-        while not self._stop_event.is_set():
-            new_msg = self.recv_message()
+        start_time = time.time()
+        while not self._stop_event.is_set() and time.time() - start_time < timeout:
+            new_msg = self.recv_message(timeout - (time.time() - start_time))
             if isinstance(new_msg, expected_msg_type):
                 return new_msg
+        raise TimeoutException
 
     def fileno(self):
         return self._socket.fileno()
@@ -106,3 +118,7 @@ class Channel(object):
         self._stop_event.set()
         self._socket.close()
         self._is_socket_closed = True
+
+    @property
+    def closed(self):
+        return self._is_socket_closed
