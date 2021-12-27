@@ -7,7 +7,7 @@ from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
-from p2p_fileshare.framework.messages import StartFileTransferMessage
+from p2p_fileshare.framework.messages import StartFileTransferMessage, RTTCheckMessage
 
 
 class FileDownloader(object):
@@ -17,6 +17,7 @@ class FileDownloader(object):
     downloaded or a fatal error occurs.
     """
     MAX_CHUNK_DOWNLOADERS = 2
+    MAX_TIMEOUT = 4
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
         self._file_info = file_info
@@ -56,15 +57,35 @@ class FileDownloader(object):
         for downloader_to_remove in downloaders_to_remove:
             self._chunk_downloaders.remove(downloader_to_remove)
 
-    def _choose_origin(self, chunk_num) -> SharingClientInfo:
+    def _calculate_round_trip_time(self, ip: str, port: int):
+        try:
+            s = socket()
+            s.settimeout(self.MAX_TIMEOUT)
+            s.connect((ip, port))
+            rtt_channel = Channel(s)
+            rtt_check_message = RTTCheckMessage()
+            rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message)
+            rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
+                    time.time()-rtt_response_message.recv_time)
+            channel.close()
+            return rtt
+        except:
+            return None
+
+    def _weight_rtt(self, rtt_list):
+        return [rtt[0]/2+rtt[1] for rtt in rtt_list if rtt is not None]
+
+    def _choose_origin(self, chunk_num: int) -> SharingClientInfo:
         """
         Retrieves the best origin from which to download the file chunk.
         """
         # TODO: improve this logic to consider RTT
-        for origin in self._file_info.origins:
-            if origin.ip is not None and origin.port is not None:
-                return origin
-        raise Exception('Coun\'nt find an origin to download the file')
+        origins_rtt = [self._calculate_round_trip_time(origin.ip, origin.port) for origin in self._file_info.origins]
+        weighted_origins_rtt = self._weight_rtt(origins_rtt).sort()
+        if len(weighted_origins_rtt) == 0:
+            raise Exception('Coun\'nt find an origin to download the file')
+        return weighted_origins_rtt[0]
+
 
     def _run_chunk_downloaders(self):
         if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:

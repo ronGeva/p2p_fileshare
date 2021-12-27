@@ -96,6 +96,13 @@ class Channel(object):
             if isinstance(new_msg, expected_msg_type):
                 return new_msg
 
+    def wait_for_messages(self, expected_msgs_type: list, timeout=None):
+        # TODO: handle error message (so that if something failed the endpoint will know)
+        while not self._stop_event.is_set():
+            new_msg = self.recv_message()
+            if type(new_msg) in expected_msgs_type:
+                return new_msg
+
     def fileno(self):
         return self._socket.fileno()
 
