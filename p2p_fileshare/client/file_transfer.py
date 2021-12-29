@@ -142,12 +142,11 @@ class ChunkDownloader(Thread):
     def run(self):
         try:
             self._init_downloader()
-            self._file_object.lock_chunk(self._chunk_num)
             data = self._get_chunk_data()
             self._file_object.write_chunk(self._chunk_num, data)  # Make sure there is timeout on this in file object
         except Exception as e:
             # Something went wrong - we still need to download this chunk
-            self._file_object.unlock_chunk(self._chunk_num)
+            self._file_object.return_failed_chunk(self._chunk_num)
             self.failed = True
             raise e
         finally:

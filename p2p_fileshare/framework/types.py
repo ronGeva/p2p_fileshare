@@ -1,7 +1,6 @@
 """
 A module containing different types used by the application
 """
-from filelock import FileLock
 from typing import Optional
 from math import ceil
 import os
@@ -51,7 +50,6 @@ class FileObject(object):
         self._file_path = file_path
         self._files_data = {}
         self._chunk_num = None
-        self._chunks = {}
         self._downloaded_chunks = 0  # amount of chunks already present in the file
         if is_local:
             self._get_file_data()
@@ -60,6 +58,7 @@ class FileObject(object):
             self._write_empty_file()
         else:
             raise ValueError('Bad usage: file is not local and file data was not supplied!')
+        self._chunks = set([chunk_num for chunk_num in range(self.amount_of_chunks)])
 
     def _write_empty_file(self):
         """
@@ -131,7 +130,6 @@ class FileObject(object):
         with open(self._file_path, 'r+b') as f:
             f.seek(self.CHUNK_SIZE * chunk_num)
             f.write(chunk_data)
-        self._chunks[chunk_num] = True
         self._downloaded_chunks += 1
 
     def get_shared_file(self):
@@ -139,10 +137,8 @@ class FileObject(object):
                                  []) 
 
     def get_empty_chunk(self) -> Optional[int]:
-        # TODO: figure out a faster algorithm
-        for i in range(self.amount_of_chunks):
-            if i not in self._chunks:
-                return i
+        if len(self._chunks) > 0:
+            return self._chunks.pop()
         return None
 
     def has_empty_chunks(self) -> bool:
@@ -151,9 +147,5 @@ class FileObject(object):
         """
         return self._downloaded_chunks != self.amount_of_chunks
 
-    def lock_chunk(self, chunk_num: int):
-        self._chunks[chunk_num] = None
-
-    def unlock_chunk(self, chunk_num: int):
-        if chunk_num in self._chunks:
-            self._chunks.pop(chunk_num)
+    def return_failed_chunk(self, chunk_num: int):
+        self._chunks.add(chunk_num)
