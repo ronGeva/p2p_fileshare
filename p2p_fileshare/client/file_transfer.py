@@ -17,6 +17,7 @@ class FileDownloader(object):
     downloaded or a fatal error occurs.
     """
     MAX_CHUNK_DOWNLOADERS = 2
+    CHUNK_TIMEOUT = 5
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
         self._file_info = file_info
@@ -45,16 +46,28 @@ class FileDownloader(object):
 
     def _check_chunk_downloaders(self):
         downloaders_to_remove = []
+        current_time = time.time()
         for chunk_downloader in self._chunk_downloaders:
             # TODO - Add the ability to kill blocking downloader
             if chunk_downloader.finished:
-                if chunk_downloader.failed and chunk_downloader.origin in self._file_info.origins:
+                if chunk_downloader.failed:
                     # Something failed, let's stop downloading from this origin
-                    self._file_info.origins.remove(chunk_downloader.origin)
+                    self._remove_origin(chunk_downloader)
+                downloaders_to_remove.append(chunk_downloader)
+            elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
+                chunk_downloader.stop()
+                self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
 
         for downloader_to_remove in downloaders_to_remove:
             self._chunk_downloaders.remove(downloader_to_remove)
+
+    def _remove_origin(self, chunk_downloader: "ChunkDownloader"):
+        """
+        Removes the origin of chunk_downloader, if it's still in the file's origins.
+        """
+        if chunk_downloader.origin in self._file_info.origins:
+            self._file_info.origins.remove(chunk_downloader.origin)
 
     def _choose_origin(self, chunk_num) -> SharingClientInfo:
         """
@@ -128,6 +141,7 @@ class ChunkDownloader(Thread):
         self._channel = None
         self.finished = False
         self.failed = False
+        self.start_time = None
 
     def _init_downloader(self):
         s = socket()
@@ -140,6 +154,7 @@ class ChunkDownloader(Thread):
         return chunk_download_response.data
 
     def run(self):
+        self.start_time = time.time()
         try:
             self._init_downloader()
             data = self._get_chunk_data()
