@@ -2,7 +2,9 @@ import time
 
 from p2p_fileshare.client.files_manager import FilesManager
 from p2p_fileshare.server.server import MetadataServer
+from p2p_fileshare.client.file_transfer import FileDownloader
 from contextlib import contextmanager
+from unittest.mock import Mock
 import tempfile
 import os
 
@@ -41,8 +43,8 @@ def test_simple_file_transfer(metadata_server: MetadataServer, first_client: Fil
         assert len(res) == 1, "Expected to find only searched file, instead got: {0}".format(res)
         requested_file = res[0]
         with closed_temporary_file() as second_client_file:
-            first_client.download_file(requested_file.unique_id, second_client_file.name)
-            download = first_client.list_downloads()[0]
+            second_client.download_file(requested_file.unique_id, second_client_file.name)
+            download = second_client.list_downloads()[0]
             while not download.is_done():
                 continue
             assert not download.failed, "Download failed!"
@@ -50,3 +52,24 @@ def test_simple_file_transfer(metadata_server: MetadataServer, first_client: Fil
                 second_data = f.read()
             assert first_data == second_data, "File's data is different after transfer. Expected: {0}, got: {1}".\
                 format(first_data, second_data)
+
+
+def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):
+    with closed_temporary_file() as first_client_file:
+        first_data = os.urandom(100)
+        with open(first_client_file.name, 'wb') as f:
+            f.write(first_data)
+        first_client.share_file(first_client_file.name)
+        time.sleep(1)  # wait a bit so that the server will update its DB
+        res = second_client.search_file(os.path.basename(first_client_file.name))
+        assert len(res) == 1, "Expected to find only searched file, instead got: {0}".format(res)
+        requested_file = res[0]
+        # Cause the first client's share server to do nothing with new clients, in order to trigger a timeout
+        first_client._file_share_server._receive_new_client = lambda *args, **kwargs: Mock()
+        with closed_temporary_file() as second_client_file:
+            second_client.download_file(requested_file.unique_id, second_client_file.name)
+            download = second_client.list_downloads()[0]
+            start_time = time.time()
+            while not download.is_done() and time.time() - start_time < FileDownloader.DOWNLOAD_TIMEOUT:
+                continue
+            assert download.failed, "Download has not failed!"
