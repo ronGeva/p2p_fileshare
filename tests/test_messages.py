@@ -50,7 +50,7 @@ def assert_objects_have_same_attributes(first, second):
             assert_objects_have_same_attributes(first_attr, second_attr)
 
 
-@pytest.mark.parametrize('message', MESSAGES)
+@pytest.mark.parametrize('message', MESSAGES, ids=[type(message).__name__ for message in MESSAGES])
 def test_message_serialization(message):
     """
     This test asserts serializing and then deserializing a message results in a message containing identical data,
