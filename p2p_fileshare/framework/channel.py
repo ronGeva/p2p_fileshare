@@ -4,7 +4,7 @@ This module is a wrapper for reliable communication with an endpoint.
 import logging
 import time
 
-from p2p_fileshare.framework.messages import Message
+from p2p_fileshare.framework.messages import Message, GeneralErrorMessage
 from socket import socket
 from struct import pack, unpack
 from threading import Event
@@ -108,6 +108,10 @@ class Channel(object):
             new_msg = self.recv_message(timeout - (time.time() - start_time))
             if isinstance(new_msg, expected_msg_type):
                 return new_msg
+            elif isinstance(new_msg, GeneralErrorMessage):
+                raise Exception(new_msg.error_info)
+            else:
+                logger.error(f'Expected msg type {expected_msg_type.type}, got {new_msg.type}, ignoring message!')
         raise TimeoutException
 
     def wait_for_messages(self, expected_msgs_type: list, timeout=None):

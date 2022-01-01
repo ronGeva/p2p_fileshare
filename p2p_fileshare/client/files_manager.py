@@ -87,6 +87,12 @@ class FilesManager(object):
 
         shared_file_message = ShareFileMessage(shared_file)
         self._communication_channel.send_message(shared_file_message)
+        try:
+            self._communication_channel.wait_for_message(GeneralSuccessMessage)
+            logger.debug(f"Successfully add new file share")
+        except Exception as e:
+            logger.debug(f"Failed adding new file share")
+
 
     def download_file(self, unique_id: str, local_path: str):
         if unique_id+local_path in self.downloaders:
@@ -118,4 +124,9 @@ class FilesManager(object):
 
     def remove_share(self, unique_id: str):
         self._communication_channel.send_message(RemoveShareMessage(unique_id))
-        self._local_db.remove_share(unique_id)
+        try:
+            self._communication_channel.wait_for_message(GeneralSuccessMessage)
+            self._local_db.remove_share(unique_id)
+            logger.debug(f"Successfully removed file share")
+        except Exception as e:
+            logger.debug(f"Failed removing new file share")
