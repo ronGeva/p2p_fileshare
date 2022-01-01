@@ -1,12 +1,13 @@
 import os
-
-from pytest import fixture
+import socket
+from pytest import fixture, mark
 from random import randint
 from os import unlink
 from contextlib import contextmanager
 from p2p_fileshare.server.server import MetadataServer
 from p2p_fileshare.client.main import initialize_files_manager, client_id_path
 from p2p_fileshare.client.files_manager import FilesManager
+from p2p_fileshare.framework.channel import Channel
 
 
 DEFAULT_PORT = '1337'
@@ -58,3 +59,45 @@ def first_client():
 def second_client():
     with client(SECOND_USERNAME) as c:
         yield c
+
+
+@fixture(scope='function')
+def server_socket():
+    s = socket.socket()
+    try:
+        s.bind((LOCAL_HOST, 0))
+        s.listen(1)
+        yield s
+    finally:
+        s.close()
+
+
+@fixture(scope='function')
+def client_socket():
+    s = socket.socket()
+    try:
+        yield s
+    finally:
+        s.close()
+
+
+@fixture(scope='function')
+def client_and_server_channels(client_socket, server_socket) -> (Channel, Channel):
+    client_socket.connect((LOCAL_HOST, server_socket.getsockname()[1]))
+    server_new_socket = server_socket.accept()[0]
+    client_channel = Channel(client_socket)
+    server_channel = Channel(server_new_socket)
+    try:
+        yield client_channel, server_channel
+    finally:
+        client_channel.close()
+        server_channel.close()
+
+
+@fixture(scope='function')
+def channel_pair(client_and_server_channels, request) -> (Channel, Channel):
+    client_channel, server_channel = client_and_server_channels
+    if request.param == 'client':
+        return client_channel, server_channel
+    else:
+        return server_channel, client_channel
