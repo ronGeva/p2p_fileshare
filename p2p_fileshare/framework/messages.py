@@ -394,11 +394,11 @@ class RTTCheckMessage(Message):
 
     @classmethod
     def deserialize(cls, data: bytes):
-        send_time = unpack("I", data[4: 8])[0]
+        send_time = unpack("d", data[4: 12])[0]
         return RTTCheckMessage(send_time=send_time)
 
     def serialize(self):
-        send_time = pack("I", int(time.time()))
+        send_time = pack("d", time.time())
         return pack("I", self.type()) + send_time
 
     @classmethod
@@ -421,13 +421,13 @@ class RTTResponseMessage(Message):
 
     @classmethod
     def deserialize(cls, data: bytes):
-        send_time = unpack("I", data[4: 8])[0]
-        recv_time = unpack("I", data[8: 12])[0]
+        send_time = unpack("d", data[4: 12])[0]
+        recv_time = unpack("d", data[12: 20])[0]
         return RTTResponseMessage(send_time=send_time, recv_time=recv_time)
 
     def serialize(self):
-        send_time = pack("I", self.send_time)
-        recv_time = pack("I", int(time.time()))
+        send_time = pack("d", self.send_time)
+        recv_time = pack("d", time.time())
         return pack("I", self.type()) + send_time + recv_time
 
     @classmethod

@@ -111,7 +111,7 @@ class Channel(object):
             elif isinstance(new_msg, GeneralErrorMessage):
                 raise Exception(new_msg.error_info)
             else:
-                logger.error(f'Expected msg type {expected_msg_type.type}, got {new_msg.type}, ignoring message!')
+                logger.error(f'Expected msg type {expected_msg_type.type()}, got {new_msg.type()}, ignoring message!')
         raise TimeoutException
 
     def wait_for_messages(self, expected_msgs_type: list, timeout=None):

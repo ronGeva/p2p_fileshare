@@ -5,7 +5,9 @@ from typing import Optional
 from math import ceil
 import os
 import hashlib
+import logging
 
+logger = logging.getLogger(__name__)
 
 class FileOrigin(object):
     def __init__(self, address: (str, int)):
@@ -131,6 +133,7 @@ class FileObject(object):
             f.seek(self.CHUNK_SIZE * chunk_num)
             f.write(chunk_data)
         self._downloaded_chunks += 1
+        logger.debug(f'Wrote chunk {chunk_num} to file {self._file_path}')
 
     def get_shared_file(self):
         return SharedFile(self._files_data['unique_id'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],

@@ -67,23 +67,25 @@ class FileDownloader(object):
         for downloader_to_remove in downloaders_to_remove:
             self._chunk_downloaders.remove(downloader_to_remove)
 
-    def _calculate_round_trip_time(self, ip: str, port: int):
+    def _calculate_round_trip_time(self, origin):
+        logger.debug(f'Calculating rtt for {origin.ip}:{origin.port}')
         try:
             s = socket()
             s.settimeout(self.MAX_TIMEOUT)
-            s.connect((ip, port))
+            s.connect((origin.ip, origin.port))
             rtt_channel = Channel(s)
             rtt_check_message = RTTCheckMessage()
             rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message)
             rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
                     time.time()-rtt_response_message.recv_time)
-            channel.close()
-            return rtt
-        except:
+            rtt_channel.close()
+            return (origin, rtt)
+        except Exception as e:
+            logger.error(e)
             return None
 
     def _weight_rtt(self, rtt_list):
-        return [rtt[0]/2+rtt[1] for rtt in rtt_list if rtt is not None]
+        return [(rtt[0], rtt[1][0]/2+rtt[1][1]) for rtt in rtt_list if rtt is not None]
 
     def _remove_origin(self, chunk_downloader: "ChunkDownloader"):
         """
@@ -97,11 +99,11 @@ class FileDownloader(object):
         Retrieves the best origin from which to download the file chunk.
         """
         # TODO: improve this logic to consider RTT
-        origins_rtt = [self._calculate_round_trip_time(origin.ip, origin.port) for origin in self._file_info.origins]
-        weighted_origins_rtt = self._weight_rtt(origins_rtt).sort()
+        origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins]
+        weighted_origins_rtt = sorted(self._weight_rtt(origins_rtt), key=lambda origin: origin[1])
         if len(weighted_origins_rtt) == 0:
             raise Exception('Coun\'nt find an origin to download the file')
-        return weighted_origins_rtt[0]
+        return weighted_origins_rtt[0][0]
 
 
     def _run_chunk_downloaders(self):
@@ -131,6 +133,7 @@ class FileDownloader(object):
                 self._run_chunk_downloaders()
                 time.sleep(1)
         except Exception as e:
+            logger.error(f"Got exception: {e}")
             self._stop_event.set()  # let the app know the download failed
             raise e
 
@@ -182,8 +185,11 @@ class ChunkDownloader(Thread):
         self.start_time = time.time()
         try:
             self._init_downloader()
+            logger.debug('Starting chunk download')
             data = self._get_chunk_data()
+            logger.debug(f'Got chunk in size {len(data)}')
             self._file_object.write_chunk(self._chunk_num, data)  # Make sure there is timeout on this in file object
+            logger.debug(f'Wrote chunk data')
         except Exception as e:
             # Something went wrong - we still need to download this chunk
             self._file_object.return_failed_chunk(self._chunk_num)
