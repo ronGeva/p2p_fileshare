@@ -3,11 +3,15 @@ This module contains the implementation of the local downloading logic.
 """
 
 import time
+import logging
 from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
 from p2p_fileshare.framework.messages import StartFileTransferMessage, RTTCheckMessage
+
+
+logger = logging.getLogger(__name__)
 
 
 class FileDownloader(object):
@@ -18,6 +22,7 @@ class FileDownloader(object):
     """
     MAX_CHUNK_DOWNLOADERS = 2
     MAX_TIMEOUT = 4
+    CHUNK_TIMEOUT = 5
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
         self._file_info = file_info
@@ -46,12 +51,17 @@ class FileDownloader(object):
 
     def _check_chunk_downloaders(self):
         downloaders_to_remove = []
+        current_time = time.time()
         for chunk_downloader in self._chunk_downloaders:
-            # TODO - Add the ability to kill blocking downloader
             if chunk_downloader.finished:
-                if chunk_downloader.failed and chunk_downloader.origin in self._file_info.origins:
+                if chunk_downloader.failed:
                     # Something failed, let's stop downloading from this origin
-                    self._file_info.origins.remove(chunk_downloader.origin)
+                    self._remove_origin(chunk_downloader)
+                downloaders_to_remove.append(chunk_downloader)
+            elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
+                logger.info("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
+                chunk_downloader.stop()
+                self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
 
         for downloader_to_remove in downloaders_to_remove:
@@ -74,6 +84,13 @@ class FileDownloader(object):
 
     def _weight_rtt(self, rtt_list):
         return [rtt[0]/2+rtt[1] for rtt in rtt_list if rtt is not None]
+
+    def _remove_origin(self, chunk_downloader: "ChunkDownloader"):
+        """
+        Removes the origin of chunk_downloader, if it's still in the file's origins.
+        """
+        if chunk_downloader.origin in self._file_info.origins:
+            self._file_info.origins.remove(chunk_downloader.origin)
 
     def _choose_origin(self, chunk_num: int) -> SharingClientInfo:
         """
@@ -149,6 +166,7 @@ class ChunkDownloader(Thread):
         self._channel = None
         self.finished = False
         self.failed = False
+        self.start_time = None
 
     def _init_downloader(self):
         s = socket()
@@ -161,14 +179,14 @@ class ChunkDownloader(Thread):
         return chunk_download_response.data
 
     def run(self):
+        self.start_time = time.time()
         try:
             self._init_downloader()
-            self._file_object.lock_chunk(self._chunk_num)
             data = self._get_chunk_data()
             self._file_object.write_chunk(self._chunk_num, data)  # Make sure there is timeout on this in file object
         except Exception as e:
             # Something went wrong - we still need to download this chunk
-            self._file_object.unlock_chunk(self._chunk_num)
+            self._file_object.return_failed_chunk(self._chunk_num)
             self.failed = True
             raise e
         finally:
@@ -183,3 +201,8 @@ class ChunkDownloader(Thread):
         if self._channel is not None:
             self._channel.close()
         self.finished = True
+
+    def __str__(self):
+        return "File ID: {file_id}, origin: {origin}, chunk: {chunk}".format(
+            file_id=self._file_id, origin=self.origin, chunk=self._chunk_num
+        )

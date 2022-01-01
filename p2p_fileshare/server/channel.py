@@ -11,17 +11,20 @@ from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
     ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \
     RemoveShareMessage, SharePortMessage
-from p2p_fileshare.framework.types import SharingClientInfo, SharedFileInfo
+from p2p_fileshare.framework.types import SharingClientInfo
+from p2p_fileshare.framework.selectable_event import signal
 from typing import Callable
 import time
 import hashlib
+import socket
 
 
 logger = getLogger(__file__)
 
 
 class ClientChannel(object):
-    def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable):
+    def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable,
+                 finished_socket: socket.socket):
         self._channel = client_channel
         self._db = db
         self._client_id = None
@@ -29,20 +32,26 @@ class ClientChannel(object):
         self._thread.start()
         self._get_all_clients_func = get_all_clients_func
         self._client_share_port = None
+        self._finished_socket = finished_socket
 
     def __start(self):
         """
         This is the channel start routine which is called at its initialization and invoked as a seperated thread.
         All logic within this function must be thread safe.
         """
-        while not self._channel._is_socket_closed:
-            rlist, _, _ = select([self._channel], [], [], 0)
-            if rlist:
-                msg = self._channel.recv_message()
-                logger.debug(f"received message: {msg}")
-                response = self._do_action(msg)
-                if response is not None:
-                    self._channel.send_message(response)
+        try:
+            while True:
+                # infinite wait - once the channel is closed the select will be triggered, once we'll attempt to read
+                # an exception will be thrown forcing us to exit.
+                rlist, _, _ = select([self._channel], [], [])
+                if rlist:
+                    msg = self._channel.recv_message()
+                    logger.debug(f"received message: {msg}")
+                    response = self._do_action(msg)
+                    if response is not None:
+                        self._channel.send_message(response)
+        finally:
+            signal(self._finished_socket)
 
     def __get_connected_sharing_clients(self, file_unique_id: str) -> list[SharingClientInfo]:
         """
@@ -100,12 +109,6 @@ class ClientChannel(object):
                 return GeneralErrorMessage('Failed to delete share: No such share was found!')
 
         return None
-
-    def __stop(self):
-        """
-        Stops the channel's thread and signal the main Server component that this channel is invalid.
-        """
-        raise NotImplementedError
 
     def get_client_connection_info(self):
         """
