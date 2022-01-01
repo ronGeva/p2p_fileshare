@@ -36,14 +36,14 @@ class Channel(object):
             stop_event = Event()
         self._stop_event = stop_event
 
-    def send_msg_and_wait_for_response(self, message: Message):
+    def send_msg_and_wait_for_response(self, message: Message, timeout: float = DEFAULT_TIMEOUT):
         """
         Sends a message and wait for the server's response.
         :param message: The message to send.
         :return: A Message object containing the server's response.
         """
         self.send_message(message)
-        return self.wait_for_message(message.matching_response_type)
+        return self.wait_for_message(message.matching_response_type, timeout=timeout)
 
     def _get_data_from_sock(self, data_len, timeout: float):
         """

@@ -398,8 +398,8 @@ class RTTCheckMessage(Message):
         return RTTCheckMessage(send_time=send_time)
 
     def serialize(self):
-        send_time = pack("d", time.time())
-        return pack("I", self.type()) + send_time
+        self.send_time = time.time()
+        return pack("I", self.type()) + pack("d", self.send_time)
 
     @classmethod
     def type(cls):
@@ -426,9 +426,8 @@ class RTTResponseMessage(Message):
         return RTTResponseMessage(send_time=send_time, recv_time=recv_time)
 
     def serialize(self):
-        send_time = pack("d", self.send_time)
-        recv_time = pack("d", time.time())
-        return pack("I", self.type()) + send_time + recv_time
+        self.recv_time = time.time()
+        return pack("I", self.type()) + pack("d", self.send_time) + pack("d", self.recv_time)
 
     @classmethod
     def type(cls):

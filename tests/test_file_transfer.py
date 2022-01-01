@@ -105,7 +105,7 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
         download.CHUNK_TIMEOUT = 3  # set the timeout to be small
         start_time = time.time()
         # Give the FileDownloader 3 more seconds to avoid a race condition
-        while not download.is_done() and time.time() - start_time < FileDownloader.CHUNK_TIMEOUT + 3:
+        while not download.is_done() and time.time() - start_time < FileDownloader.RTT_TIMEOUT + FileDownloader.CHUNK_TIMEOUT + 3:
             continue
         assert download.failed, "Download has not failed!"
     # Make sure a timeout has occurred by viewing the logs of file_transfer.py

@@ -21,7 +21,7 @@ class FileDownloader(object):
     downloaded or a fatal error occurs.
     """
     MAX_CHUNK_DOWNLOADERS = 2
-    MAX_TIMEOUT = 4
+    RTT_TIMEOUT = 2
     CHUNK_TIMEOUT = 5
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
@@ -52,6 +52,7 @@ class FileDownloader(object):
     def _check_chunk_downloaders(self):
         downloaders_to_remove = []
         current_time = time.time()
+        logger.debug("Checking chunk downloaders")
         for chunk_downloader in self._chunk_downloaders:
             if chunk_downloader.finished:
                 if chunk_downloader.failed:
@@ -59,7 +60,7 @@ class FileDownloader(object):
                     self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
             elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
-                logger.info("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
+                logger.error("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
                 chunk_downloader.stop()
                 self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
@@ -71,17 +72,20 @@ class FileDownloader(object):
         logger.debug(f'Calculating rtt for {origin.ip}:{origin.port}')
         try:
             s = socket()
-            s.settimeout(self.MAX_TIMEOUT)
+            s.settimeout(self.RTT_TIMEOUT)
             s.connect((origin.ip, origin.port))
             rtt_channel = Channel(s)
             rtt_check_message = RTTCheckMessage()
-            rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message)
+            rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message, timeout=self.RTT_TIMEOUT)
             rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
                     time.time()-rtt_response_message.recv_time)
             rtt_channel.close()
             return (origin, rtt)
         except Exception as e:
-            logger.error(e)
+            if time.time() - rtt_check_message.send_time > self.RTT_TIMEOUT:
+                logger.error(f"RTT check on host {origin.ip}:{origin.port} failed due to timeout.")
+            else:
+                logger.error(e)
             return None
 
     def _weight_rtt(self, rtt_list):
@@ -102,7 +106,7 @@ class FileDownloader(object):
         origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins]
         weighted_origins_rtt = sorted(self._weight_rtt(origins_rtt), key=lambda origin: origin[1])
         if len(weighted_origins_rtt) == 0:
-            raise Exception('Coun\'nt find an origin to download the file')
+            raise Exception('Couldn\'t find an origin to download the file')
         return weighted_origins_rtt[0][0]
 
 
@@ -134,8 +138,7 @@ class FileDownloader(object):
                 time.sleep(1)
         except Exception as e:
             logger.error(f"Got exception: {e}")
-            self._stop_event.set()  # let the app know the download failed
-            raise e
+            self.stop()  # let the app know the download failed
 
     def stop(self):
         """
