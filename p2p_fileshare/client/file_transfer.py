@@ -48,7 +48,6 @@ class FileDownloader(object):
         downloaders_to_remove = []
         current_time = time.time()
         for chunk_downloader in self._chunk_downloaders:
-            # TODO - Add the ability to kill blocking downloader
             if chunk_downloader.finished:
                 if chunk_downloader.failed:
                     # Something failed, let's stop downloading from this origin
