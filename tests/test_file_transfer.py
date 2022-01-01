@@ -1,13 +1,14 @@
-import time
-
 from p2p_fileshare.client.files_manager import FilesManager
 from p2p_fileshare.server.server import MetadataServer
 from p2p_fileshare.client.file_transfer import FileDownloader
 from p2p_fileshare.framework.types import SharedFile
+from utils import LogStashHandler
 from contextlib import contextmanager
 from unittest.mock import Mock
 import tempfile
 import os
+import time
+import logging
 
 
 @contextmanager
@@ -80,6 +81,8 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
     We then override's the sharing client chunk transferring function so that it will do nothing but hold the socket
     (thus simulating real life hung situation where the other endpoint does no respond).
     We then attempt to download the file and expect the download to fail.
+    Finally, we make sure the file_transfer module has logged a timeout error (to validate the download failed due to
+    a timeout).
     """
     saved_client = []
     def _mock_receive_new_client(client, client_address, finished_socket):
@@ -88,6 +91,9 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
         saved_client.append(client)
         # Return a mock object to the sharing client
         return Mock()
+    file_transfer_logger = logging.getLogger('p2p_fileshare.client.file_transfer')
+    log_stash = LogStashHandler()
+    file_transfer_logger.addHandler(log_stash)
 
     with _prepare_for_download(first_client, second_client) as download_params:
         requested_file, second_client_file, _ = download_params
@@ -102,3 +108,5 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
         while not download.is_done() and time.time() - start_time < FileDownloader.CHUNK_TIMEOUT + 3:
             continue
         assert download.failed, "Download has not failed!"
+    # Make sure a timeout has occurred by viewing the logs of file_transfer.py
+    assert any(["due to timeout" in record.msg for record in log_stash.logs])

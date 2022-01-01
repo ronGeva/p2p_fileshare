@@ -3,11 +3,15 @@ This module contains the implementation of the local downloading logic.
 """
 
 import time
+import logging
 from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
 from p2p_fileshare.framework.messages import StartFileTransferMessage
+
+
+logger = logging.getLogger(__name__)
 
 
 class FileDownloader(object):
@@ -54,6 +58,7 @@ class FileDownloader(object):
                     self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
             elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
+                logger.info("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
                 chunk_downloader.stop()
                 self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
@@ -175,3 +180,8 @@ class ChunkDownloader(Thread):
         if self._channel is not None:
             self._channel.close()
         self.finished = True
+
+    def __str__(self):
+        return "File ID: {file_id}, origin: {origin}, chunk: {chunk}".format(
+            file_id=self._file_id, origin=self.origin, chunk=self._chunk_num
+        )
