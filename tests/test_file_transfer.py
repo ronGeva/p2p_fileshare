@@ -11,7 +11,7 @@ import os
 
 
 @contextmanager
-def closed_temporary_file():
+def closed_temporary_file() -> tempfile.TemporaryFile:
     """
     :return: A closed temporary file which is guaranteed to exist and to be deleted once the context manager exits.
     """
@@ -24,7 +24,18 @@ def closed_temporary_file():
 
 
 @contextmanager
-def _prepare_for_download(first_client: FilesManager, second_client: FilesManager) -> (SharedFile, str, bytes):
+def _prepare_for_download(first_client: FilesManager, second_client: FilesManager) -> (SharedFile,
+                                                                                       tempfile._TemporaryFileWrapper,
+                                                                                       bytes):
+    """
+    Prepare the environment for file download.
+    This function creates a file with random data, share it via first_client, searches it via second_client, get the
+    SharedFile object representing the file via second_client and prepare a temporary file to downlaod the file into.
+    :param first_client: The client which we'll use to share the file.
+    :param second_client: The client which we'll use to search the file.
+    :return: a 3 tuple containing - (the requested file <SharedFile>, the output file <TemporaryFile>, the data of the
+    file shared <bytes>).
+    """
     with closed_temporary_file() as first_client_file:
         first_data = os.urandom(100)
         with open(first_client_file.name, 'wb') as f:
