@@ -5,7 +5,7 @@ from random import randint
 from os import unlink
 from contextlib import contextmanager
 from p2p_fileshare.server.server import MetadataServer
-from p2p_fileshare.client.main import initialize_files_manager
+from p2p_fileshare.client.main import initialize_files_manager, client_id_path
 from p2p_fileshare.client.files_manager import FilesManager
 
 
@@ -45,15 +45,16 @@ def client(username: str) -> FilesManager:
     finally:
         db_path = FilesManager.generate_db_path(username)
         os.unlink(db_path)
+        os.unlink(client_id_path(username))
 
 
-@fixture(scope='module')
+@fixture(scope='function')
 def first_client():
     with client(FIRST_USERNAME) as c:
         yield c
 
 
-@fixture(scope='module')
+@fixture(scope='function')
 def second_client():
     with client(SECOND_USERNAME) as c:
         yield c
