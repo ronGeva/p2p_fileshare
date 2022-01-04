@@ -9,7 +9,6 @@ import sys
 from typing import Optional
 from flask import Flask, request, render_template
 from p2p_fileshare.client.files_manager import FilesManager
-from p2p_fileshare.framework.channel import Channel
 from main import initialize_files_manager
 
 
@@ -18,6 +17,10 @@ files_manager = None  # type: Optional[FilesManager]
 
 
 def wrap_response(func):
+    """
+    This decorator wrap each "landing spot" function defined in this module to allow us to easily return an appropriate
+    error to the frontend in case something goes wrong.
+    """
     def inner(*args, **kwargs):
         try:
             response = func(*args, **kwargs)

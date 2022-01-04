@@ -27,6 +27,14 @@ class StopEventSignaledException(Exception):
 
 
 class Channel(object):
+    """
+    An object wrapping an underlying socket and allowing communication with a remote endpoint via messages (objects
+    inheriting from Message) as well as asynchronous message read/write with a timeout.
+
+    The protocol used by the channel in order to transfer messages via a TCP stream is as follows:
+        4 bytes of data - N
+        N bytes of data - Message.
+    """
     DEFAULT_TIMEOUT = 10
 
     def __init__(self, endpoint_socket: socket, stop_event: Event = None):
@@ -72,6 +80,9 @@ class Channel(object):
         raise TimeoutException
 
     def send_message(self, message: Message):
+        """
+        Sends a single message via the channel.
+        """
         if self._is_socket_closed:
             raise SocketClosedException()
         try:
@@ -86,7 +97,12 @@ class Channel(object):
             else:
                 raise e
 
-    def recv_message(self, timeout: float = DEFAULT_TIMEOUT):
+    def recv_message(self, timeout: float = DEFAULT_TIMEOUT) -> Message:
+        """
+        Receives a message from the underlying socket.
+        :param timeout: The timeout of this function.
+        :return: A message read by the channel.
+        """
         start_time = time.time()
         if self._is_socket_closed:
             raise SocketClosedException()
@@ -102,6 +118,14 @@ class Channel(object):
                 raise e
 
     def wait_for_message(self, expected_msg_type: type, timeout: float = DEFAULT_TIMEOUT):
+        """
+        Waits for a message of a specific type to be received.
+        Other messages that might arrive during this function's runtime will be ignored.
+        :param expected_msg_type: The expected message type.
+        :param timeout: The timeout of this method.
+        :return: The message received.
+        :raises: TimeoutException in case of a timeout.
+        """
         # TODO: handle error message (so that if something failed the endpoint will know)
         start_time = time.time()
         while not self._stop_event.is_set() and time.time() - start_time < timeout:
