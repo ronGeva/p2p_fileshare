@@ -19,6 +19,11 @@ class StopException(Exception):
 
 
 class Server(ABC):
+    """
+    An abstract class representing a server - an entity used to wait for new client via a listening TCP socket.
+    Once a new client connects to the server the server will accept it and add it to a list of currently connected
+    clients, as well as call a callback of the derived class that can perform additional actions (_receive_new_client).
+    """
     WAIT_TIMEOUT = 1
 
     def __init__(self, port=0):
@@ -42,8 +47,9 @@ class Server(ABC):
 
     def _accept_new_client(self):
         """
-        Checks for a new client and create an appropriate channel for it.
-        :return: None.
+        Accepts a new client and create an appropriate channel for it, as well as registering the new client's
+        "finished" event and passing it to him so that it could signal the server when to remove it from the clients
+        list.
         """
         new_client, client_address = self._socket.accept()
         logger.debug(f"Accepted new client: {client_address}")
@@ -53,6 +59,11 @@ class Server(ABC):
         self._selectable_sockets[finished_consumer] = lambda: self.remove_client(finished_consumer, new_item)
 
     def remove_client(self, consuming_socket: socket.socket, item: Any):
+        """
+        Removes a client from the clients list as well as removing its registered "remove_client" function.
+        :param consuming_socket: The socket used by the client to notify the server it is finished.
+        :param item: The client itself.
+        """
         consuming_socket.recv(1)  # read the single byte message
         self._selectable_sockets.pop(consuming_socket)
         self._items.remove(item)
@@ -68,6 +79,13 @@ class Server(ABC):
         logger.debug("Server's stop event was set!")
 
     def main_loop(self):
+        """
+        The main loop of the server.
+        The server waits in idle mode forever (performs a select on a list of selectable sockets).
+        Once one of its selectables is signaled, the server performs the actions registers in the
+        self._selectable_socket dictionary.
+        This method exits only once the stop event is signaled.
+        """
         try:
             while True:
                 rlist, _, _ = select(self._selectable_sockets.keys(), [], [])  # infinite wait

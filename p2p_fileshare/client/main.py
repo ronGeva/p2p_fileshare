@@ -94,7 +94,12 @@ def resolve_id(communication_channel: Channel, username: str):
             f.write(client_id_msg.unique_id)
 
 
-def initialize_files_manager(args):
+def initialize_files_manager(args) -> FilesManager:
+    """
+    Initializes the files manager according to the argument supplied via the command line to the application.
+    :param args: A list of arguments (server hostname, port, username).
+    :return: An initialized FilesManager with an underlying communication channel connected to the metadata server.
+    """
     communication_channel = initialize_communication_channel(args)
     username = 'default_user'
     if len(args) >= 4:

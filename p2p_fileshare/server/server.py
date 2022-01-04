@@ -15,6 +15,10 @@ logger = logging.getLogger(__file__)
 
 
 class MetadataServer(Server):
+    """
+    This class takes care of the server's core logic - accepting new clients and starting an appropriate ClientChannel
+    for them.
+    """
     def __init__(self, port=0, db_path=None):
         super().__init__(port)
         self._db = DBManager(db_path)
@@ -22,8 +26,6 @@ class MetadataServer(Server):
     def _receive_new_client(self, client: socket.socket, client_address: tuple[str, int], finished_socket: socket.socket):
         new_channel = Channel(client)
         return ClientChannel(new_channel, self._db, self.get_all_clients_info, finished_socket)
-        new_comm_channel = ClientChannel(new_channel, self._db, self.get_all_clients_info, finished_socket)
-        self._communication_channels.append(new_comm_channel)
 
     def _remove_old_clients(self):
         """

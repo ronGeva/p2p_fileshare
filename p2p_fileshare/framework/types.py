@@ -7,12 +7,10 @@ import os
 import hashlib
 
 
-class FileOrigin(object):
-    def __init__(self, address: (str, int)):
-        self.address = address
-
-
 class SharingClientInfo(object):
+    """
+    This object represents information regarding a single sharing client.
+    """
     def __init__(self, unique_id: str, sockname: tuple[str, int]):
         self.unique_id = unique_id
         self.ip, self.port = sockname
@@ -24,6 +22,9 @@ class SharingClientInfo(object):
 
 
 class SharedFile(object):
+    """
+    This class contains the metadata of a shared file.
+    """
     def __init__(self, unique_id: str, name: str, modification_time: int, size: int, origins: list[SharingClientInfo]):
         self.unique_id = unique_id
         self.name = name
@@ -32,17 +33,11 @@ class SharedFile(object):
         self.origins = origins
 
 
-class SharedFileInfo(object):
-    def __init__(self, unique_id: str, sharing_clients: list[SharingClientInfo]):
-        self.unique_id = unique_id
-        self.sharing_clients = sharing_clients
-
-
 class FileObject(object):
     """
     A class which represents a shared file during the download/upload stage.
     It can be used by both the sharing client to transfer chunks of it to the downloading client,
-    and by the downloading to receive and write chunks into its own local copy of the file.
+    and by the downloading client to receive and write chunks into its own local copy of the file.
     """
     CHUNK_SIZE = 1024 * 1024 * 3  # 3 MB
 

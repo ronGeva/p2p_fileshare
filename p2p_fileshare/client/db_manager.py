@@ -8,6 +8,10 @@ from p2p_fileshare.framework.db import AbstractDBManager, db_func
 
 
 class DBManager(AbstractDBManager):
+    """
+    This class governs access to the client's db - used to hold persistent data across multiple starts of the
+    application.
+    """
     DEFAULT_DB_PATH = "client_db.db"
 
     def _create_empty_db(self, cursor):

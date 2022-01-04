@@ -40,6 +40,10 @@ def get_message_type_object(message_type):
 
 
 class Message(object):
+    """
+    The base message class.
+    Each of the application's messages should inherit from this class and implement its abstract methods.
+    """
     def serialize(self):
         raise NotImplementedError
 
@@ -93,6 +97,12 @@ class GeneralErrorMessage(Message):
 
 
 class FileMessage(Message):
+    """
+    A message used to de/serialize a SharedFile object.
+    This is useful in order to pass information about shared files from different endpoints in the application.
+    NOTE: This message ignores the origins of the SharedFile object and instead always passes an empty list (both in
+    the serialization and the deserialization process).
+    """
     def __init__(self, file: SharedFile):
         self.file = file
 
@@ -116,6 +126,9 @@ class FileMessage(Message):
 
 
 class FileListMessage(Message):
+    """
+    A messages containing multiple SharedFiles.
+    """
     def __init__(self, files: list[SharedFile]):
         self.files = files
 
@@ -144,6 +157,10 @@ class FileListMessage(Message):
 
 
 class SearchFileMessage(Message):
+    """
+    This message can be used as a request to retrieve information about a file using a string representing a part of the
+    filename.
+    """
     def __init__(self, name: str):
         self.name = name
 
@@ -164,6 +181,9 @@ class SearchFileMessage(Message):
 
 
 class ShareFileMessage(Message):
+    """
+    A message used by the client to notify the metadata server it is now sharing a specific file.
+    """
     def __init__(self, shared_file: SharedFile):
         self.file = shared_file
 

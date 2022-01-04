@@ -49,6 +49,12 @@ class FileDownloader(object):
         return self._file_info
 
     def _check_chunk_downloaders(self):
+        """
+        Iterates through the running chunk downloaders and handles each one according to their state.
+        If a downloader has finished, removes it from the list, and if it has failed removes its origin as well to
+        prevent potential future downloaders failing again.
+        This method also takes care of timeout for hung downloaders.
+        """
         downloaders_to_remove = []
         current_time = time.time()
         for chunk_downloader in self._chunk_downloaders:
@@ -84,6 +90,9 @@ class FileDownloader(object):
         raise Exception('Coun\'nt find an origin to download the file')
 
     def _run_chunk_downloaders(self):
+        """
+        Checks whether a new ChunkDownloader needs to be started, and if it does, starts it.
+        """
         if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:
             chunk_num = self._file_object.get_empty_chunk()  # find needed chunk
             if chunk_num is None:
@@ -148,16 +157,26 @@ class ChunkDownloader(Thread):
         self.start_time = None
 
     def _init_downloader(self):
+        """
+        Initiates the udnerlying channel that will be used in the downlaod process.
+        """
         s = socket()
         s.connect((self.origin.ip, self.origin.port))
         self._channel = Channel(s, self.stop_event)
 
     def _get_chunk_data(self) -> bytes:
+        """
+        Requests and receives the file chunk as a ChunkDataResponseMessage.
+        """
         download_message = StartFileTransferMessage(file_id=self._file_id, chunk_num=self._chunk_num)
         chunk_download_response = self._channel.send_msg_and_wait_for_response(download_message)
         return chunk_download_response.data
 
     def run(self):
+        """
+        Initiates the communication channel with the remote sharing client, request and download the file chunk and
+        handles download errors in case they occur.
+        """
         self.start_time = time.time()
         try:
             self._init_downloader()

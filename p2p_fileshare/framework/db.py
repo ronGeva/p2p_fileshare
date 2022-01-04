@@ -1,13 +1,11 @@
 """
 This modules governs DB-related actions.
 """
-import logging
 import sqlite3
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from filelock import FileLock
 from os.path import exists, isfile
-from p2p_fileshare.framework.types import SharedFile, FileOrigin
 
 
 DB_LOCK_TIMEOUT = 10
@@ -43,6 +41,10 @@ def db_func(func):
 
 
 class AbstractDBManager(ABC):
+    """
+    An abstract class used to implement a database wrapper that implements methods to read/write data to a local sqlite
+    database.
+    """
     DEFAULT_DB_PATH = "server_db.db"
 
     def __init__(self, db_path=None):
