@@ -34,17 +34,17 @@ class FileDownloader(object):
         self._local_path = local_path
         self._stop_event = Event()
         self._chunk_downloaders = []
+        self._origins_stats = {}
         self._thread = Thread(target=self.__start)
         self._file_object = FileObject(self._local_path, self._file_info)
         self._thread.start()
-        self._origins_stats = {}
 
     @property
     def progress(self) -> int:
         """
         Retrieve a number between 0 to 100 representing the percentage of the file successfully downloaded until now.
         """
-        return int((self._file_object.downloaded_chunks / self._file_object.amount_of_chunks) * 100)
+        return int((len(self._file_object.downloaded_chunks) / self._file_object.amount_of_chunks) * 100)
 
     @property
     def local_path(self):
@@ -77,8 +77,8 @@ class FileDownloader(object):
                 downloaders_to_remove.append(chunk_downloader)
             elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
                 logger.error("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
-                chunk_downloader.stop()
                 chunk_downloader.failed = True
+                chunk_downloader.stop()
                 downloaders_to_remove.append(chunk_downloader)
 
         for downloader_to_remove in downloaders_to_remove:
@@ -119,6 +119,7 @@ class FileDownloader(object):
 
     def _update_origins(self):
         if len(self._origins_stats) < self.MIN_ORIGINS_FOR_UPDATE:
+            logger.debug("Updating origin list")
             sharing_info_request = SharingInfoRequestMessage(self._file_info.unique_id)
             self._server_channel.send_message(sharing_info_request)
             shared_file = self._server_channel.wait_for_message(SharingInfoResponseMessage).shared_file
@@ -137,25 +138,26 @@ class FileDownloader(object):
         if chunk_downloader.origin in self._origins_stats:
             self._origins_stats.pop(chunk_downloader.origin)
 
-    def _choose_origin(self, chunk_num: int) -> SharingClientInfo:
+    def _choose_origin(self) -> SharingClientInfo:
         """
         Retrieves the best origin from which to download the file chunk.
         """
         # TODO: improve this logic to consider RTT
+        logger.debug("Choosing new origin")
         self._update_origins()
         self._base_rate_origins()
 
         # Getting the best score (the lowest avarage chunk download time)
         scored_origins = [origin for origin in self._origins_stats if self._origins_stats[origin]['score'] is not None]
-        scored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['score'])
+        scored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['score'][0])
         for origin in scored_origins:
             if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
                 return origin
 
         # Choosing the next origin based on rtt (since we used all the scored origins)
-        unscored_origins = [origin for origin in self._origins_stats if self._origins_stats[origin]['score'] is None]
-        unscored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['rtt'])
-        for origin in unscored_origins:
+        unscored_origins = [(origin, self._origins_stats[origin]['rtt']) for origin in self._origins_stats if self._origins_stats[origin]['score'] is None]
+        unscored_origins = sorted(unscored_origins, key=lambda origin: origin[1])
+        for origin, rtt in unscored_origins:
             if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
                 return origin
 
@@ -165,12 +167,23 @@ class FileDownloader(object):
     def _run_chunk_downloaders(self):
         if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:
             chunk_num = self._file_object.get_empty_chunk()  # find needed chunk
+            logger.debug(f"Trying to download chunk: {chunk_num}")
             if chunk_num is None:
                 # we're finished
                 return
-            origin = self._choose_origin(chunk_num)
+            try:
+                origin = self._choose_origin()
+            except Exception as e:
+                self._file_object.return_failed_chunk(chunk_num)
+                logger.debug(f"Exception in run chunk downloader: {e}")
+                if len(self._origins_stats) == 0:
+                    raise e
+                else:
+                    return
+
+            logger.debug(f"Choose origin {origin} for chunk_num {chunk_num}")
             self._origins_stats[origin]['downloaders'] = self._origins_stats[origin]['downloaders'] + 1
-            # start ChunkDownloader
+            # Start ChunkDownloader
             chunk_downloader = ChunkDownloader(self._file_info.unique_id, origin, self._file_object, chunk_num)
             self._chunk_downloaders.append(chunk_downloader)
             chunk_downloader.start()
@@ -258,6 +271,8 @@ class ChunkDownloader(Thread):
         """
         Stops the chunk downloading thread and closes its underlying channel.
         """
+        if self.failed:
+            self._file_object.return_failed_chunk(self._chunk_num)
         self.stop_event.set()
         time.sleep(1)
         if self._channel is not None:
