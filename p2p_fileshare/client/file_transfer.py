@@ -159,8 +159,6 @@ class FileDownloader(object):
             if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
                 return origin
 
-        origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins]
-
         raise Exception('Couldn\'t find an origin to download the file from')
 
 
