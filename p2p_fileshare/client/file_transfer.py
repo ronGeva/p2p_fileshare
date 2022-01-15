@@ -8,7 +8,7 @@ from socket import socket
 from threading import Thread, Event
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
-from p2p_fileshare.framework.messages import StartFileTransferMessage, RTTCheckMessage
+from p2p_fileshare.framework.messages import StartFileTransferMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, RTTCheckMessage
 
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,11 @@ class FileDownloader(object):
     """
     MAX_CHUNK_DOWNLOADERS = 2
     RTT_TIMEOUT = 2
+    RTT_TOLERANCE = 0.5
     CHUNK_TIMEOUT = 5
+    MIN_ORIGINS_FOR_UPDATE = 10
+    MAX_ORIGIN_DOWNLOADER = 3
+    MAX_ORIGIN_FAILS = 5
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
         self._file_info = file_info
@@ -33,6 +37,7 @@ class FileDownloader(object):
         self._thread = Thread(target=self.__start)
         self._file_object = FileObject(self._local_path, self._file_info)
         self._thread.start()
+        self._origins_stats = {}
 
     @property
     def progress(self) -> int:
@@ -49,23 +54,38 @@ class FileDownloader(object):
     def file_info(self):
         return self._file_info
 
+    def _update_origin_stat_after_download(self, downloader):
+        origin_stats = self._origins_stats[downloader.origin]
+        origin_stats['downloaders'] = origin_stats['downloaders'] - 1
+        if not downloader.failed:
+            origin_stats['failed_attempts'] = 0
+            download_time = time.time() - downloader.start_time
+            score = origin_stats['score']
+            if score is None:
+                score = (download_time, 1)
+            else:
+                origin_stats['score'] = (((score[0] * score[1]) + download_time) / (score[1]+1), score[1] + 1)
+        else:
+            origin_stats['failed_attempts'] = origin_stats['failed_attempts'] + 1
+
     def _check_chunk_downloaders(self):
         downloaders_to_remove = []
         current_time = time.time()
         logger.debug("Checking chunk downloaders")
         for chunk_downloader in self._chunk_downloaders:
             if chunk_downloader.finished:
-                if chunk_downloader.failed:
-                    # Something failed, let's stop downloading from this origin
-                    self._remove_origin(chunk_downloader)
                 downloaders_to_remove.append(chunk_downloader)
             elif current_time - chunk_downloader.start_time > self.CHUNK_TIMEOUT:
                 logger.error("Stopping ChunkDownloader {0} due to timeout.".format(chunk_downloader))
                 chunk_downloader.stop()
-                self._remove_origin(chunk_downloader)
+                chunk_downloader.failed = True
                 downloaders_to_remove.append(chunk_downloader)
 
         for downloader_to_remove in downloaders_to_remove:
+            self._update_origin_stat_after_download(downloader_to_remove)
+            if self._origins_stats[downloader_to_remove.origin]['failed_attempts'] >= self.MAX_ORIGIN_FAILS:
+                # Origin fails to frequently, let's stop downloading from this origin for now
+                self._remove_origin(chunk_downloader)
             self._chunk_downloaders.remove(downloader_to_remove)
 
     def _calculate_round_trip_time(self, origin):
@@ -76,10 +96,16 @@ class FileDownloader(object):
             s.connect((origin.ip, origin.port))
             rtt_channel = Channel(s)
             rtt_check_message = RTTCheckMessage()
+            rtt_check_start = time.time()
             rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message, timeout=self.RTT_TIMEOUT)
-            rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
+            absolute_rtt = time.time() - rtt_check_start
+            msg_rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
                     time.time()-rtt_response_message.recv_time)
             rtt_channel.close()
+            if abs(absolute_rtt-(msg_rtt[0]+msg_rtt[1])) > self.RTT_TOLERANCE:
+                rtt = msg_rtt
+            else:
+                rtt = (absolute_rtt/2, absolute_rtt/2)
             return (origin, rtt)
         except Exception as e:
             if time.time() - rtt_check_message.send_time > self.RTT_TIMEOUT:
@@ -91,23 +117,51 @@ class FileDownloader(object):
     def _weight_rtt(self, rtt_list):
         return [(rtt[0], rtt[1][0]/2+rtt[1][1]) for rtt in rtt_list if rtt is not None]
 
+    def _update_origins(self):
+        if len(self._origins_stats) < self.MIN_ORIGINS_FOR_UPDATE:
+            sharing_info_request = SharingInfoRequestMessage(self._file_info.unique_id)
+            self._server_channel.send_message(sharing_info_request)
+            shared_file = self._server_channel.wait_for_message(SharingInfoResponseMessage).shared_file
+            self._file_info.origins = shared_file.origins
+
+    def _base_rate_origins(self):
+        origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins if origin not in self._origins_stats]
+        weighted_origins_rtt = self._weight_rtt(origins_rtt)
+        for origin,rtt in weighted_origins_rtt:
+            self._origins_stats[origin] = {'rtt':rtt, 'score':None, 'downloaders':0, 'failed_attempts':0}
+
     def _remove_origin(self, chunk_downloader: "ChunkDownloader"):
         """
         Removes the origin of chunk_downloader, if it's still in the file's origins.
         """
-        if chunk_downloader.origin in self._file_info.origins:
-            self._file_info.origins.remove(chunk_downloader.origin)
+        if chunk_downloader.origin in self._origins_stats:
+            self._origins_stats.pop(chunk_downloader.origin)
 
     def _choose_origin(self, chunk_num: int) -> SharingClientInfo:
         """
         Retrieves the best origin from which to download the file chunk.
         """
         # TODO: improve this logic to consider RTT
+        self._update_origins()
+        self._base_rate_origins()
+
+        # Getting the best score (the lowest avarage chunk download time)
+        scored_origins = [origin for origin in self._origins_stats if self._origins_stats[origin]['score'] is not None]
+        scored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['score'])
+        for origin in scored_origins:
+            if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
+                return origin
+
+        # Choosing the next origin based on rtt (since we used all the scored origins)
+        unscored_origins = [origin for origin in self._origins_stats if self._origins_stats[origin]['score'] is None]
+        unscored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['rtt'])
+        for origin in unscored_origins:
+            if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
+                return origin
+
         origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins]
-        weighted_origins_rtt = sorted(self._weight_rtt(origins_rtt), key=lambda origin: origin[1])
-        if len(weighted_origins_rtt) == 0:
-            raise Exception('Couldn\'t find an origin to download the file')
-        return weighted_origins_rtt[0][0]
+
+        raise Exception('Couldn\'t find an origin to download the file from')
 
 
     def _run_chunk_downloaders(self):
@@ -117,6 +171,7 @@ class FileDownloader(object):
                 # we're finished
                 return
             origin = self._choose_origin(chunk_num)
+            self._origins_stats[origin]['downloaders'] = self._origins_stats[origin]['downloaders'] + 1
             # start ChunkDownloader
             chunk_downloader = ChunkDownloader(self._file_info.unique_id, origin, self._file_object, chunk_num)
             self._chunk_downloaders.append(chunk_downloader)
