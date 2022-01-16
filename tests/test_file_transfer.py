@@ -94,6 +94,8 @@ def test_simple_file_transfer(metadata_server: MetadataServer, first_client: Fil
         download = second_client.list_downloads()[0]
         while not download.is_done():
             continue
+        # Sleeping to let the downloader close everything
+        time.sleep(3)
         assert not download.failed, "Download failed!"
         with open(second_client_file.name, 'rb') as f:
             second_data = f.read()
@@ -117,11 +119,10 @@ def test_double_origin_file_transfer(metadata_server: MetadataServer, first_clie
         download = third_client.list_downloads()[0]
         while not download.is_done():
             continue
+        # Sleeping to let the downloader close everything
+        time.sleep(3)
         assert not download.failed, "Download failed!"
         assert len(download._origins_stats) == 2, "Failed getting both origins"
-        file_transfer_logger = logging.getLogger('p2p_fileshare.client.file_transfer')
-        time.sleep(3)
-        file_transfer_logger.info(f'\n\n\n{download._origins_stats}\n\n\n')
         with open(third_client_file.name, 'rb') as f:
             downloaded_data = f.read()
         assert file_data == downloaded_data, "File's data is different after transfer. Expected: {0}, got: {1}". \
