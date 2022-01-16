@@ -25,7 +25,7 @@ class FileDownloader(object):
     RTT_TOLERANCE = 0.5
     CHUNK_TIMEOUT = 5
     MIN_ORIGINS_FOR_UPDATE = 10
-    MAX_ORIGIN_DOWNLOADER = 3
+    MAX_ORIGIN_DOWNLOADER = 2
     MAX_ORIGIN_FAILS = 5
 
     def __init__(self, file_info: SharedFile, server_channel: Channel, local_path: str):
@@ -33,6 +33,7 @@ class FileDownloader(object):
         self._server_channel = server_channel
         self._local_path = local_path
         self._stop_event = Event()
+        self._is_done = False
         self._chunk_downloaders = []
         self._origins_stats = {}
         self._thread = Thread(target=self.__start)
@@ -55,6 +56,7 @@ class FileDownloader(object):
         return self._file_info
 
     def _update_origin_stat_after_download(self, downloader):
+        logger.debug(f"Updating stats after download: {downloader.origin}")
         origin_stats = self._origins_stats[downloader.origin]
         origin_stats['downloaders'] = origin_stats['downloaders'] - 1
         if not downloader.failed:
@@ -62,7 +64,7 @@ class FileDownloader(object):
             download_time = time.time() - downloader.start_time
             score = origin_stats['score']
             if score is None:
-                score = (download_time, 1)
+                origin_stats['score'] = (download_time, 1)
             else:
                 origin_stats['score'] = (((score[0] * score[1]) + download_time) / (score[1]+1), score[1] + 1)
         else:
@@ -147,13 +149,16 @@ class FileDownloader(object):
         self._update_origins()
         self._base_rate_origins()
 
+        logger.debug("Choosing based on score")
         # Getting the best score (the lowest avarage chunk download time)
         scored_origins = [origin for origin in self._origins_stats if self._origins_stats[origin]['score'] is not None]
         scored_origins = sorted(scored_origins, key=lambda origin: self._origins_stats[origin]['score'][0])
+
         for origin in scored_origins:
             if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
                 return origin
 
+        logger.debug("Choosing based on rtt")
         # Choosing the next origin based on rtt (since we used all the scored origins)
         unscored_origins = [(origin, self._origins_stats[origin]['rtt']) for origin in self._origins_stats if self._origins_stats[origin]['score'] is None]
         unscored_origins = sorted(unscored_origins, key=lambda origin: origin[1])
@@ -188,8 +193,11 @@ class FileDownloader(object):
             self._chunk_downloaders.append(chunk_downloader)
             chunk_downloader.start()
 
-    def is_done(self):
+    def did_finish_download(self):
         return self._stop_event.is_set() or not self._file_object.has_empty_chunks()
+
+    def is_done(self):
+        return self._stop_event.is_set()
 
     def __start(self):
         """
@@ -197,13 +205,14 @@ class FileDownloader(object):
         All logic within this function must be thread safe.
         """
         try:
-            while not self.is_done():
+            while not self.did_finish_download():
                 # check threads
                 self._check_chunk_downloaders()
                 self._run_chunk_downloaders()
                 time.sleep(1)
         except Exception as e:
             logger.error(f"Got exception: {e}")
+        finally:
             self.stop()  # let the app know the download failed
 
     def stop(self):

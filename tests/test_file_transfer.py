@@ -38,7 +38,7 @@ def _prepare_for_download(first_client: FilesManager, second_client: FilesManage
     file shared <bytes>).
     """
     with closed_temporary_file() as first_client_file:
-        first_data = os.urandom(100)
+        first_data = os.urandom(3000)
         with open(first_client_file.name, 'wb') as f:
             f.write(first_data)
         first_client.share_file(first_client_file.name)
@@ -49,6 +49,33 @@ def _prepare_for_download(first_client: FilesManager, second_client: FilesManage
         with closed_temporary_file() as second_client_file:
             yield requested_file, second_client_file, first_data
 
+@contextmanager
+def _prepare_for_double_origin_download(first_client: FilesManager, second_client: FilesManager, third_client: FilesManager) -> (SharedFile,
+                                                                                       tempfile._TemporaryFileWrapper, bytes):
+    """
+    Prepare the environment for file download.
+    This function creates a file with random data, share it via first_client, searches it via second_client, get the
+    SharedFile object representing the file via second_client and prepare a temporary file to downlaod the file into.
+    :param first_client: The client which we'll use to share the file.
+    :param second_client: The client which we'll use to search the file.
+    :return: a 3 tuple containing - (the requested file <SharedFile>, the output file <TemporaryFile>, the data of the
+    file shared <bytes>).
+    """
+    with closed_temporary_file() as first_client_file:
+        with closed_temporary_file() as second_client_file:
+            shared_data = os.urandom(3000)
+            with open(first_client_file.name, 'wb') as f:
+                f.write(shared_data)
+            with open(second_client_file.name, 'wb') as f:
+                f.write(shared_data)
+            first_client.share_file(first_client_file.name)
+            second_client.share_file(second_client_file.name)
+            time.sleep(1)  # wait a bit so that the server will update its DB
+            res = third_client.search_file(os.path.basename(first_client_file.name))
+            assert len(res) == 1, "Expected to find only searched file, instead got: {0}".format(res)
+            requested_file = res[0]
+            with closed_temporary_file() as third_client_file:
+                yield requested_file, third_client_file, shared_data
 
 def test_simple_file_transfer(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):
     """
@@ -72,6 +99,33 @@ def test_simple_file_transfer(metadata_server: MetadataServer, first_client: Fil
             second_data = f.read()
         assert file_data == second_data, "File's data is different after transfer. Expected: {0}, got: {1}". \
             format(file_data, second_data)
+
+def test_double_origin_file_transfer(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager, third_client: FilesManager):
+    """
+    Test the file transfer works in its simplest form.
+    Steps:
+    1. Create a file with 100 bytes of random data.
+    2. Share the file created in step #1 via client #1 (and wait a bit for the server to process the request).
+    3. Search the file shared in step #2 via client #2.
+    4. Download the file found via client #2.
+    5. Wait for the download initiated in step #4 to finish.
+    6. Assert the file was downloaded successfully.
+    """
+    with _prepare_for_double_origin_download(first_client, second_client, third_client) as params:
+        requested_file, third_client_file, file_data = params
+        third_client.download_file(requested_file.unique_id, third_client_file.name)
+        download = third_client.list_downloads()[0]
+        while not download.is_done():
+            continue
+        assert not download.failed, "Download failed!"
+        assert len(download._origins_stats) == 2, "Failed getting both origins"
+        file_transfer_logger = logging.getLogger('p2p_fileshare.client.file_transfer')
+        time.sleep(3)
+        file_transfer_logger.info(f'\n\n\n{download._origins_stats}\n\n\n')
+        with open(third_client_file.name, 'rb') as f:
+            downloaded_data = f.read()
+        assert file_data == downloaded_data, "File's data is different after transfer. Expected: {0}, got: {1}". \
+            format(file_data, downloaded_data)
 
 
 def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):

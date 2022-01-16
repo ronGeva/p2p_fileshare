@@ -14,6 +14,7 @@ DEFAULT_PORT = '1337'
 LOCAL_HOST = '127.0.0.1'
 FIRST_USERNAME = 'first_username'
 SECOND_USERNAME = 'second_username'
+THIRD_USERNAME = 'third_username'
 
 
 def generate_random_name(size: int):
@@ -66,6 +67,11 @@ def first_client():
 @fixture(scope='function')
 def second_client():
     with client(SECOND_USERNAME) as c:
+        yield c
+
+@fixture(scope='function')
+def third_client():
+    with client(THIRD_USERNAME) as c:
         yield c
 
 
