@@ -120,7 +120,7 @@ def main(args):
     global files_manager
     files_manager = initialize_files_manager(args)
 
-    app.run("localhost", get_web_server_port(args), debug=True)
+    app.run("localhost", get_web_server_port(args))
 
 
 if __name__ == '__main__':
