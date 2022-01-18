@@ -6,7 +6,7 @@ import time
 import logging
 from socket import socket
 from threading import Thread, Event
-from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.channel import Channel, TimeoutException
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
 from p2p_fileshare.framework.messages import StartFileTransferMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, RTTCheckMessage
 
@@ -109,7 +109,7 @@ class FileDownloader(object):
             else:
                 rtt = (absolute_rtt/2, absolute_rtt/2)
             return (origin, rtt)
-        except Exception as e:
+        except TimeoutException as e:
             logger.error(e)
             return None
 
@@ -163,7 +163,7 @@ class FileDownloader(object):
             if self._origins_stats[origin]['downloaders'] < self.MAX_ORIGIN_DOWNLOADER:
                 return origin
 
-        raise Exception('Couldn\'t find an origin to download the file from')
+        return None
 
 
     def _run_chunk_downloaders(self):
@@ -173,6 +173,16 @@ class FileDownloader(object):
             if chunk_num is None:
                 # we're finished
                 return
+
+            try:
+                origin = self._choose_origin()
+                if origin is None:
+                    self._file_object.return_failed_chunk(chunk_num)
+                    return
+            except Exception as e:
+                self._file_object.return_failed_chunk(chunk_num)
+                raise e
+
             origin = self._choose_origin()
 
             logger.debug(f"Choose origin {origin} for chunk_num {chunk_num}")
@@ -249,8 +259,8 @@ class ChunkDownloader(Thread):
         return chunk_download_response.data
 
     def run(self):
-        self.start_time = time.time()
         try:
+            self.start_time = time.time()
             self._init_downloader()
             logger.debug('Starting chunk download')
             data = self._get_chunk_data()
@@ -261,7 +271,7 @@ class ChunkDownloader(Thread):
             # Something went wrong - we still need to download this chunk
             self._file_object.return_failed_chunk(self._chunk_num)
             self.failed = True
-            raise e
+            logger.error(f'Failed chunk download: {e}')
         finally:
             self.stop()
 

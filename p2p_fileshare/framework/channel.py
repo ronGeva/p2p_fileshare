@@ -106,6 +106,8 @@ class Channel(object):
         start_time = time.time()
         while not self._stop_event.is_set() and time.time() - start_time < timeout:
             new_msg = self.recv_message(timeout - (time.time() - start_time))
+            if new_msg is None:
+                raise Exception("recv_message returned None")
             if isinstance(new_msg, expected_msg_type):
                 return new_msg
             elif isinstance(new_msg, GeneralErrorMessage):

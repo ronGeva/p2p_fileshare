@@ -7,7 +7,7 @@ from threading import Thread
 from select import select
 from logging import getLogger
 from p2p_fileshare.server.db_manager import DBManager
-from p2p_fileshare.framework.channel import Channel
+from p2p_fileshare.framework.channel import Channel, SocketClosedException
 from p2p_fileshare.framework.messages import Message, SearchFileMessage, FileListMessage, ShareFileMessage, \
     ClientIdMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, GeneralSuccessMessage, GeneralErrorMessage, \
     RemoveShareMessage, SharePortMessage
@@ -45,7 +45,11 @@ class ClientChannel(object):
                 # an exception will be thrown forcing us to exit.
                 rlist, _, _ = select([self._channel], [], [])
                 if rlist:
-                    msg = self._channel.recv_message()
+                    try:
+                        msg = self._channel.recv_message()
+                    except SocketClosedException as e:
+                        logger.debug('Socket closed')
+                        break
                     logger.debug(f"received message: {msg}")
                     response = self._do_action(msg)
                     if response is not None:
