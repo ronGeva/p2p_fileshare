@@ -110,10 +110,7 @@ class FileDownloader(object):
                 rtt = (absolute_rtt/2, absolute_rtt/2)
             return (origin, rtt)
         except Exception as e:
-            if time.time() - rtt_check_message.send_time > self.RTT_TIMEOUT:
-                logger.error(f"RTT check on host {origin.ip}:{origin.port} failed due to timeout.")
-            else:
-                logger.error(e)
+            logger.error(e)
             return None
 
     def _weight_rtt(self, rtt_list):

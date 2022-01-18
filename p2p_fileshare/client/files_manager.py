@@ -5,7 +5,7 @@ import logging
 
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
-    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage
+    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage, GeneralSuccessMessage
 from p2p_fileshare.framework.types import SharedFile
 from p2p_fileshare.client.file_share import FileShareServer
 from p2p_fileshare.client.db_manager import DBManager
@@ -126,7 +126,7 @@ class FilesManager(object):
         self._communication_channel.send_message(RemoveShareMessage(unique_id))
         try:
             self._communication_channel.wait_for_message(GeneralSuccessMessage)
-            self._local_db.remove_share(unique_id)
-            logger.debug(f"Successfully removed file share")
+            logger.debug(f"Successfully removed file share from metadata server")
         except Exception as e:
-            logger.debug(f"Failed removing new file share")
+            logger.debug(f"Failed removing file share from metadata server")
+        self._local_db.remove_share(unique_id)

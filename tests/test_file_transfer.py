@@ -2,6 +2,7 @@ from p2p_fileshare.client.files_manager import FilesManager
 from p2p_fileshare.server.server import MetadataServer
 from p2p_fileshare.client.file_transfer import FileDownloader
 from p2p_fileshare.framework.types import SharedFile
+from p2p_fileshare.framework.channel import TimeoutException
 from utils import LogStashHandler
 from contextlib import contextmanager
 from unittest.mock import Mock
@@ -164,4 +165,4 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
             continue
         assert download.failed, "Download has not failed!"
     # Make sure a timeout has occurred by viewing the logs of file_transfer.py
-    assert any(["due to timeout" in record.msg for record in log_stash.logs])
+    assert any([isinstance(record.msg, TimeoutException) for record in log_stash.logs])

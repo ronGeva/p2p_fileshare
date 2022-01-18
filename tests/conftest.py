@@ -69,6 +69,7 @@ def second_client():
     with client(SECOND_USERNAME) as c:
         yield c
 
+
 @fixture(scope='function')
 def third_client():
     with client(THIRD_USERNAME) as c:
