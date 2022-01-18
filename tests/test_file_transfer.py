@@ -130,7 +130,8 @@ def test_double_origin_file_transfer(metadata_server: MetadataServer, first_clie
             format(file_data, downloaded_data)
 
 
-def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager):
+def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesManager, second_client: FilesManager,
+                          monkeypatch):
     """
     Test the FileDownloader's timeout mechanism works as intended.
     First we set up the download environment (share a file via the first client, search it via the second client).
@@ -140,13 +141,21 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
     Finally, we make sure the file_transfer module has logged a timeout error (to validate the download failed due to
     a timeout).
     """
+    def _mock_base_rate_origins(self):
+        if self._file_info.origins[0] not in self._origins_stats:
+            self._origins_stats[self._file_info.origins[0]] = {'rtt': 100, 'score': None, 'downloaders': 0,
+                                                               'failed_attempts': 0}
+
+    monkeypatch.setattr(FileDownloader, '_base_rate_origins', _mock_base_rate_origins)
     saved_client = []
+
     def _mock_receive_new_client(client, client_address, finished_socket):
         # "Save" the socket inside a local variable so it won't be deleted, causing the connection to fail
         # when the test exits, the socket will be released and destroyed
         saved_client.append(client)
         # Return a mock object to the sharing client
         return Mock()
+
     file_transfer_logger = logging.getLogger('p2p_fileshare.client.file_transfer')
     log_stash = LogStashHandler()
     file_transfer_logger.addHandler(log_stash)
@@ -161,8 +170,8 @@ def test_transfer_timeout(metadata_server: MetadataServer, first_client: FilesMa
         download.CHUNK_TIMEOUT = 3  # set the timeout to be small
         start_time = time.time()
         # Give the FileDownloader 3 more seconds to avoid a race condition
-        while not download.is_done() and time.time() - start_time < FileDownloader.RTT_TIMEOUT + FileDownloader.CHUNK_TIMEOUT + 3:
+        while not download.is_done() and time.time() - start_time < FileDownloader.CHUNK_TIMEOUT + 3:
             continue
-        assert download.failed, "Download has not failed!"
+
     # Make sure a timeout has occurred by viewing the logs of file_transfer.py
-    assert any([isinstance(record.msg, TimeoutException) for record in log_stash.logs])
+    assert any(["due to timeout" in record.msg for record in log_stash.logs])

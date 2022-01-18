@@ -86,8 +86,8 @@ class FileDownloader(object):
         for downloader_to_remove in downloaders_to_remove:
             self._update_origin_stat_after_download(downloader_to_remove)
             if self._origins_stats[downloader_to_remove.origin]['failed_attempts'] >= self.MAX_ORIGIN_FAILS:
-                # Origin fails to frequently, let's stop downloading from this origin for now
-                self._remove_origin(chunk_downloader)
+                # Origin fails too frequently, let's stop downloading from this origin for now
+                self._remove_origin(downloader_to_remove)
             self._chunk_downloaders.remove(downloader_to_remove)
 
     def _calculate_round_trip_time(self, origin):
@@ -173,15 +173,7 @@ class FileDownloader(object):
             if chunk_num is None:
                 # we're finished
                 return
-            try:
-                origin = self._choose_origin()
-            except Exception as e:
-                self._file_object.return_failed_chunk(chunk_num)
-                logger.debug(f"Exception in run chunk downloader: {e}")
-                if len(self._origins_stats) == 0:
-                    raise e
-                else:
-                    return
+            origin = self._choose_origin()
 
             logger.debug(f"Choose origin {origin} for chunk_num {chunk_num}")
             self._origins_stats[origin]['downloaders'] = self._origins_stats[origin]['downloaders'] + 1
