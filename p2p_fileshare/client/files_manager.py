@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 
 
 class FilesManager(object):
+    """
+    The FilesManager is the entry point of the client to the underlying application.
+    The FilesManager holds both ongoing shares and downloads as well as handles actions performed via the
+    metadata server (such as file search operations).
+    """
     def __init__(self, communication_channel: Channel, username: Optional[str]):
         self._communication_channel = communication_channel
         self._local_db = DBManager(self.generate_db_path(username))
@@ -29,6 +34,10 @@ class FilesManager(object):
         self.downloaders = []
 
     def __del__(self):
+        """
+        We need to define this method ourselves to make sure the local sharing server stops once the application dies
+        out.
+        """
         if self._file_share_server is not None:
             self._file_share_server.stop()
 
@@ -37,6 +46,9 @@ class FilesManager(object):
         return "{}.db".format(username)
 
     def __start_file_share(self):
+        """
+        Initializes the local FileShareServer.
+        """
         self._file_share_server = FileShareServer(local_db=self._local_db)
         self._file_share_thread = Thread(target=self._file_share_server.main_loop)
         self._file_share_thread.start()
@@ -95,6 +107,11 @@ class FilesManager(object):
 
 
     def download_file(self, unique_id: str, local_path: str):
+        """
+        Downloads a file identified by a unique id.
+        :param unique_id: The unique id identifying the file.
+        :param local_path: The path to download the file to.
+        """
         if unique_id+local_path in self.downloaders:
             logger.warning('Given file was already downloaded to given location, please list and remove it first')
         else:
@@ -123,6 +140,11 @@ class FilesManager(object):
         return self._local_db.list_shares()
 
     def remove_share(self, unique_id: str):
+        """
+        Stops sharing a local file. This method both identifies the metadata server as well as locally removing the
+        file from the "shared files" table.
+        :param unique_id: A unique ID identifying the file to stop sharing.
+        """
         self._communication_channel.send_message(RemoveShareMessage(unique_id))
         try:
             self._communication_channel.wait_for_message(GeneralSuccessMessage)

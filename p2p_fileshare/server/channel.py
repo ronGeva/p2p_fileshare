@@ -23,6 +23,9 @@ logger = getLogger(__file__)
 
 
 class ClientChannel(object):
+    """
+    A class governing the interactions with a single client from the perspective of the metadata server.
+    """
     def __init__(self, client_channel: Channel, db: DBManager, get_all_clients_func: Callable,
                  finished_socket: socket.socket):
         self._channel = client_channel
@@ -37,7 +40,8 @@ class ClientChannel(object):
     def __start(self):
         """
         This is the channel start routine which is called at its initialization and invoked as a seperated thread.
-        All logic within this function must be thread safe.
+        The server's clientChannel waits infinitely for new messages to be received.
+        For each new message it performs the action requested by the user.
         """
         try:
             while True:

@@ -16,9 +16,13 @@ import socket
 logger = getLogger(__file__)
 
 
-# NOTE: if we want to be able to query ongoing file transfers, this should probably be refactored into a class.
 def transfer_file_chunk_to_client(downloader_socket: socket.socket, db_manager: DBManager,
                                   finished_socket: socket.socket):
+    """
+    Waits for the remote client to request a single file chunk, and transfers it to him via the
+    ChunkDataResponseMessage.
+    At the end of this function the finished_socket is signaled to let the FileShareServer know the thread has finished.
+    """
     channel = Channel(downloader_socket)
     client_request = channel.wait_for_messages([StartFileTransferMessage, RTTCheckMessage])
     if isinstance(client_request, RTTCheckMessage):

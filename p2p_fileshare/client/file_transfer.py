@@ -200,7 +200,6 @@ class FileDownloader(object):
         """
         Initializes new chunks downloaders if it's necessary.
         Each ChunkDownloader is responsible for downloading a single chunk of the file.
-        :return: None
         """
         if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:
             chunk_num = self._file_object.get_empty_chunk()  # find needed chunk
@@ -284,16 +283,26 @@ class ChunkDownloader(Thread):
         self.start_time = None
 
     def _init_downloader(self):
+        """
+        Initiates the udnerlying channel that will be used in the downlaod process.
+        """
         s = socket()
         s.connect((self.origin.ip, self.origin.port))
         self._channel = Channel(s, self.stop_event)
 
     def _get_chunk_data(self) -> bytes:
+        """
+        Requests and receives the file chunk as a ChunkDataResponseMessage.
+        """
         download_message = StartFileTransferMessage(file_id=self._file_id, chunk_num=self._chunk_num)
         chunk_download_response = self._channel.send_msg_and_wait_for_response(download_message)
         return chunk_download_response.data
 
     def run(self):
+        """
+        Initiates the communication channel with the remote sharing client, request and download the file chunk and
+        handles download errors in case they occur.
+        """
         try:
             self.start_time = time.time()
             self._init_downloader()
