@@ -6,12 +6,16 @@ import time
 import logging
 from socket import socket
 from threading import Thread, Event
+from typing import Optional
 from p2p_fileshare.framework.channel import Channel, TimeoutException
 from p2p_fileshare.framework.types import FileObject, SharedFile, SharingClientInfo
 from p2p_fileshare.framework.messages import StartFileTransferMessage, SharingInfoRequestMessage, SharingInfoResponseMessage, RTTCheckMessage
 
 
 logger = logging.getLogger(__name__)
+
+
+RTTInfo = tuple[SharingClientInfo, tuple[float, float]]
 
 
 class FileDownloader(object):
@@ -55,7 +59,14 @@ class FileDownloader(object):
     def file_info(self):
         return self._file_info
 
-    def _update_origin_stat_after_download(self, downloader):
+    def _update_origin_stat_after_download(self, downloader: "ChunkDownloader"):
+        """
+        After a single ChunkDownloader has finished operating, update the statistics of its origin so that we can
+        choose a new origin more wisely in the future (for example if the download was extremely slow we can later
+        choose to download from a different origin).
+        :param downloader: The finished ChunkDownloader.
+        :return: None
+        """
         logger.debug(f"Updating stats after download: {downloader.origin}")
         origin_stats = self._origins_stats[downloader.origin]
         origin_stats['downloaders'] = origin_stats['downloaders'] - 1
@@ -71,6 +82,12 @@ class FileDownloader(object):
             origin_stats['failed_attempts'] = origin_stats['failed_attempts'] + 1
 
     def _check_chunk_downloaders(self):
+        """
+        Iterates the current running chunk downloaders and handles hung / finished ones.
+        A hung downloader should be stopped and be treated as a failed one.
+        A finished downloader should be removed from the current running downloaders and have its origin statistics
+        updated according to the result of the download.
+        """
         downloaders_to_remove = []
         current_time = time.time()
         logger.debug("Checking chunk downloaders")
@@ -90,7 +107,14 @@ class FileDownloader(object):
                 self._remove_origin(downloader_to_remove)
             self._chunk_downloaders.remove(downloader_to_remove)
 
-    def _calculate_round_trip_time(self, origin):
+    def _calculate_round_trip_time(self, origin: SharingClientInfo) -> Optional[RTTInfo]:
+        """
+        Calculate RTT and other network statistics for a single origin.
+        :param origin: A SharingClientInfo of a single client that shares the file we're currently downloading.
+        :return: A 2-tuple representing an estimation of the time (in seconds) of the time it takes to communicate
+        with the origin. First element in the tuple represents the time it takes from us to the origin, and the second
+        element represents the time it takes from the origin back to us.
+        """
         logger.debug(f'Calculating rtt for {origin.ip}:{origin.port}')
         try:
             s = socket()
@@ -102,21 +126,25 @@ class FileDownloader(object):
             rtt_response_message = rtt_channel.send_msg_and_wait_for_response(rtt_check_message, timeout=self.RTT_TIMEOUT)
             absolute_rtt = time.time() - rtt_check_start
             msg_rtt = (rtt_response_message.recv_time-rtt_response_message.send_time,
-                    time.time()-rtt_response_message.recv_time)
+                       time.time()-rtt_response_message.recv_time)
             rtt_channel.close()
             if abs(absolute_rtt-(msg_rtt[0]+msg_rtt[1])) > self.RTT_TOLERANCE:
                 rtt = msg_rtt
             else:
                 rtt = (absolute_rtt/2, absolute_rtt/2)
-            return (origin, rtt)
+            return origin, rtt
         except TimeoutException as e:
             logger.error(e)
             return None
 
-    def _weight_rtt(self, rtt_list):
+    @staticmethod
+    def _weight_rtt(rtt_list: list[RTTInfo]) -> list[tuple[SharingClientInfo, float]]:
         return [(rtt[0], rtt[1][0]/2+rtt[1][1]) for rtt in rtt_list if rtt is not None]
 
     def _update_origins(self):
+        """
+        If necessary, request a new list of clients that share the file from the server.
+        """
         if len(self._origins_stats) < self.MIN_ORIGINS_FOR_UPDATE:
             logger.debug("Updating origin list")
             sharing_info_request = SharingInfoRequestMessage(self._file_info.unique_id)
@@ -125,10 +153,14 @@ class FileDownloader(object):
             self._file_info.origins = shared_file.origins
 
     def _base_rate_origins(self):
-        origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins if origin not in self._origins_stats]
+        """
+        Calculates the RTT to every client which we've yet to run RTT check on.
+        """
+        origins_rtt = [self._calculate_round_trip_time(origin) for origin in self._file_info.origins if origin not in
+                       self._origins_stats]
         weighted_origins_rtt = self._weight_rtt(origins_rtt)
-        for origin,rtt in weighted_origins_rtt:
-            self._origins_stats[origin] = {'rtt':rtt, 'score':None, 'downloaders':0, 'failed_attempts':0}
+        for origin, rtt in weighted_origins_rtt:
+            self._origins_stats[origin] = {'rtt': rtt, 'score': None, 'downloaders': 0, 'failed_attempts': 0}
 
     def _remove_origin(self, chunk_downloader: "ChunkDownloader"):
         """
@@ -137,11 +169,10 @@ class FileDownloader(object):
         if chunk_downloader.origin in self._origins_stats:
             self._origins_stats.pop(chunk_downloader.origin)
 
-    def _choose_origin(self) -> SharingClientInfo:
+    def _choose_origin(self) -> Optional[SharingClientInfo]:
         """
         Retrieves the best origin from which to download the file chunk.
         """
-        # TODO: improve this logic to consider RTT
         logger.debug("Choosing new origin")
         self._update_origins()
         self._base_rate_origins()
@@ -165,8 +196,12 @@ class FileDownloader(object):
 
         return None
 
-
     def _run_chunk_downloaders(self):
+        """
+        Initializes new chunks downloaders if it's necessary.
+        Each ChunkDownloader is responsible for downloading a single chunk of the file.
+        :return: None
+        """
         if len(self._chunk_downloaders) < self.MAX_CHUNK_DOWNLOADERS:
             chunk_num = self._file_object.get_empty_chunk()  # find needed chunk
             logger.debug(f"Trying to download chunk: {chunk_num}")

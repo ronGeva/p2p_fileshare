@@ -9,10 +9,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class FileOrigin(object):
-    def __init__(self, address: (str, int)):
-        self.address = address
-
 
 class SharingClientInfo(object):
     def __init__(self, unique_id: str, sockname: tuple[str, int]):
@@ -139,8 +135,8 @@ class FileObject(object):
         logger.debug(f'Wrote chunk {chunk_num} to file {self._file_path}')
 
     def get_shared_file(self):
-        return SharedFile(self._files_data['unique_id'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],
-                                 []) 
+        return SharedFile(self._files_data['unique_id'],  self._files_data['name'],
+                          self._files_data['modification_time'], self._files_data['size'], [])
 
     def get_empty_chunk(self) -> Optional[int]:
         if len(self._chunks) > 0:

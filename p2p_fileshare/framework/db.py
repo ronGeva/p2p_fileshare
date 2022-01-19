@@ -1,13 +1,11 @@
 """
 This modules governs DB-related actions.
 """
-import logging
 import sqlite3
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from filelock import FileLock
 from os.path import exists, isfile
-from p2p_fileshare.framework.types import SharedFile, FileOrigin
 
 
 DB_LOCK_TIMEOUT = 10

@@ -4,7 +4,7 @@ This modules governs DB-related actions.
 import logging
 import sqlite3
 from typing import Optional
-from p2p_fileshare.framework.types import SharedFile, FileOrigin
+from p2p_fileshare.framework.types import SharedFile
 from p2p_fileshare.framework.db import AbstractDBManager, db_func
 
 
