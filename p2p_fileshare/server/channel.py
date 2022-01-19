@@ -68,7 +68,8 @@ class ClientChannel(object):
 
         # filter out current clients which do not share the file
         return [SharingClientInfo(current_client[0], (current_client[1], current_client[2]))
-                for current_client in current_clients if current_client[0] in sharing_clients]
+                for current_client in current_clients if
+                current_client[0] in sharing_clients and current_client[1] is not None]
 
     def _do_action(self, msg: Message):
         """
