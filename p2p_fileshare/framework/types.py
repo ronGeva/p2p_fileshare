@@ -5,6 +5,10 @@ from typing import Optional
 from math import ceil
 import os
 import hashlib
+import logging
+
+
+logger = logging.getLogger(__name__)
 
 
 class SharingClientInfo(object):
@@ -19,6 +23,9 @@ class SharingClientInfo(object):
         if isinstance(other, SharingClientInfo):
             return self.unique_id == other.unique_id and self.ip == other.ip and self.port == other.port
         return False
+
+    def __hash__(self):
+        return hash(f'{self.unique_id}')
 
 
 class SharedFile(object):
@@ -45,7 +52,7 @@ class FileObject(object):
         self._file_path = file_path
         self._files_data = {}
         self._chunk_num = None
-        self._downloaded_chunks = 0  # amount of chunks already present in the file
+        self._downloaded_chunks = set()  # amount of chunks already present in the file
         if is_local:
             self._get_file_data()
         elif files_data is not None:
@@ -125,11 +132,12 @@ class FileObject(object):
         with open(self._file_path, 'r+b') as f:
             f.seek(self.CHUNK_SIZE * chunk_num)
             f.write(chunk_data)
-        self._downloaded_chunks += 1
+        self._downloaded_chunks.add(chunk_num)
+        logger.debug(f'Wrote chunk {chunk_num} to file {self._file_path}')
 
     def get_shared_file(self):
-        return SharedFile(self._files_data['unique_id'],  self._files_data['name'], self._files_data['modification_time'], self._files_data['size'],
-                                 []) 
+        return SharedFile(self._files_data['unique_id'],  self._files_data['name'],
+                          self._files_data['modification_time'], self._files_data['size'], [])
 
     def get_empty_chunk(self) -> Optional[int]:
         if len(self._chunks) > 0:
@@ -140,7 +148,7 @@ class FileObject(object):
         """
         Returns whether the files has been completely downloaded.
         """
-        return self._downloaded_chunks != self.amount_of_chunks
+        return len(self._downloaded_chunks) != self.amount_of_chunks
 
     def return_failed_chunk(self, chunk_num: int):
         self._chunks.add(chunk_num)

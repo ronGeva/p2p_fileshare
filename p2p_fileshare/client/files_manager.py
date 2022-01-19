@@ -5,7 +5,7 @@ import logging
 
 from p2p_fileshare.framework.channel import Channel
 from p2p_fileshare.framework.messages import SearchFileMessage, FileListMessage, ShareFileMessage, \
-    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage
+    SharingInfoRequestMessage, SharingInfoResponseMessage, RemoveShareMessage, SharePortMessage, GeneralSuccessMessage
 from p2p_fileshare.framework.types import SharedFile
 from p2p_fileshare.client.file_share import FileShareServer
 from p2p_fileshare.client.db_manager import DBManager
@@ -99,6 +99,12 @@ class FilesManager(object):
 
         shared_file_message = ShareFileMessage(shared_file)
         self._communication_channel.send_message(shared_file_message)
+        try:
+            self._communication_channel.wait_for_message(GeneralSuccessMessage)
+            logger.debug(f"Successfully add new file share")
+        except Exception as e:
+            logger.debug(f"Failed adding new file share")
+
 
     def download_file(self, unique_id: str, local_path: str):
         """
@@ -140,4 +146,9 @@ class FilesManager(object):
         :param unique_id: A unique ID identifying the file to stop sharing.
         """
         self._communication_channel.send_message(RemoveShareMessage(unique_id))
+        try:
+            self._communication_channel.wait_for_message(GeneralSuccessMessage)
+            logger.debug(f"Successfully removed file share from metadata server")
+        except Exception as e:
+            logger.debug(f"Failed removing file share from metadata server")
         self._local_db.remove_share(unique_id)

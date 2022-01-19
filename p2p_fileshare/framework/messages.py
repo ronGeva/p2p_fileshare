@@ -1,6 +1,7 @@
 """
 A module containing Client - Server messages.
 """
+import time
 import struct
 from struct import pack, unpack
 from socket import inet_aton, inet_ntoa
@@ -21,6 +22,8 @@ START_FILE_TRANSFER_MESSAGE_TYPE = 8
 CHUNK_DATA_RESPONSE_MESSAGE_TYPE = 9
 REMOVE_SHARE_MESSAGE_TYPE = 10
 SHARE_PORT_MESSAGE_TYPE = 11
+RTT_CHECK_MESSAGE_TYPE = 12
+RTT_RESPONSE_MESSAGE_TYPE = 13
 
 
 def get_message_type_object(message_type):
@@ -35,7 +38,9 @@ def get_message_type_object(message_type):
                      GENERAL_SUCESS_MESSAGE_TYPE: GeneralSuccessMessage,
                      GENERAL_ERROR_MESSAGE_TYPE: GeneralErrorMessage,
                      REMOVE_SHARE_MESSAGE_TYPE: RemoveShareMessage,
-                     SHARE_PORT_MESSAGE_TYPE: SharePortMessage}
+                     SHARE_PORT_MESSAGE_TYPE: SharePortMessage,
+                     RTT_CHECK_MESSAGE_TYPE: RTTCheckMessage,
+                     RTT_RESPONSE_MESSAGE_TYPE: RTTResponseMessage}
     return message_types.get(message_type, None)
 
 
@@ -397,3 +402,53 @@ class SharePortMessage(Message):
     @classmethod
     def type(cls):
         return SHARE_PORT_MESSAGE_TYPE
+
+
+class RTTCheckMessage(Message):
+    """
+    This message is used by the client to let another client (the sharing client) know what file chunk he'd like to
+     download.
+    """
+    def __init__(self, send_time: int = None):
+        self.send_time = send_time
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        send_time = unpack("d", data[4: 12])[0]
+        return RTTCheckMessage(send_time=send_time)
+
+    def serialize(self):
+        self.send_time = time.time()
+        return pack("I", self.type()) + pack("d", self.send_time)
+
+    @classmethod
+    def type(cls):
+        return RTT_CHECK_MESSAGE_TYPE
+
+    @property
+    def matching_response_type(self):
+        return RTTResponseMessage
+
+
+class RTTResponseMessage(Message):
+    """
+    This message is used by the client to let another client (the sharing client) know what file chunk he'd like to
+     download.
+    """
+    def __init__(self, send_time: int, recv_time: int = None):
+        self.send_time = send_time
+        self.recv_time = recv_time
+
+    @classmethod
+    def deserialize(cls, data: bytes):
+        send_time = unpack("d", data[4: 12])[0]
+        recv_time = unpack("d", data[12: 20])[0]
+        return RTTResponseMessage(send_time=send_time, recv_time=recv_time)
+
+    def serialize(self):
+        self.recv_time = time.time()
+        return pack("I", self.type()) + pack("d", self.send_time) + pack("d", self.recv_time)
+
+    @classmethod
+    def type(cls):
+        return RTT_RESPONSE_MESSAGE_TYPE
